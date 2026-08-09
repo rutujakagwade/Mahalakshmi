@@ -1,0 +1,43 @@
+declare module 'lucide-react-native' {
+  import * as React from 'react';
+  export const Smartphone: React.ComponentType<any>;
+  export const LayoutGrid: React.ComponentType<any>;
+  export const Eye: React.ComponentType<any>;
+  export const Sparkles: React.ComponentType<any>;
+  export const Calendar: React.ComponentType<any>;
+  export const ChevronDown: React.ComponentType<any>;
+  export const ArrowLeft: React.ComponentType<any>;
+  export const Menu: React.ComponentType<any>;
+  export const Bell: React.ComponentType<any>;
+  export const Plus: React.ComponentType<any>;
+  export const X: React.ComponentType<any>;
+  export const Search: React.ComponentType<any>;
+  export const Pencil: React.ComponentType<any>;
+  export const Trash2: React.ComponentType<any>;
+  export const Phone: React.ComponentType<any>;
+  export const MapPin: React.ComponentType<any>;
+  export const User: React.ComponentType<any>;
+  export const TrendingUp: React.ComponentType<any>;
+  export const TrendingDown: React.ComponentType<any>;
+  export const Truck: React.ComponentType<any>;
+  export const Delete: React.ComponentType<any>;
+  export const Fingerprint: React.ComponentType<any>;
+  export const Home: React.ComponentType<any>;
+  export const FileText: React.ComponentType<any>;
+  export const Users: React.ComponentType<any>;
+  export const BarChart3: React.ComponentType<any>;
+  export const WifiOff: React.ComponentType<any>;
+  export const Lock: React.ComponentType<any>;
+  export const ShieldCheck: React.ComponentType<any>;
+  export const Download: React.ComponentType<any>;
+  export const Share2: React.ComponentType<any>;
+  export const HardDrive: React.ComponentType<any>;
+  export const Globe: React.ComponentType<any>;
+  export const PhoneCall: React.ComponentType<any>;
+  export const Info: React.ComponentType<any>;
+  export const LogOut: React.ComponentType<any>;
+  export const ArrowRight: React.ComponentType<any>;
+  // fallback for other icons
+  const icons: { [key: string]: React.ComponentType<any> };
+  export default icons;
+}

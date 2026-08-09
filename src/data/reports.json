@@ -1,0 +1,29 @@
+{
+  "dateRangeSummary": {
+    "startDate": "01/05/2024",
+    "endDate": "20/05/2024",
+    "totalEarnings": 245600,
+    "totalExpense": 125430,
+    "totalProfit": 120170
+  },
+  "datewiseRows": [
+    { "id": "d1", "date": "20/05/2024", "earnings": 12450, "expense": 4320, "profit": 8130 },
+    { "id": "d2", "date": "19/05/2024", "earnings": 15760, "expense": 5230, "profit": 10530 },
+    { "id": "d3", "date": "18/05/2024", "earnings": 18600, "expense": 6100, "profit": 12500 },
+    { "id": "d4", "date": "17/05/2024", "earnings": 11400, "expense": 3850, "profit": 7550 },
+    { "id": "d5", "date": "16/05/2024", "earnings": 14250, "expense": 4500, "profit": 9750 }
+  ],
+  "monthlySummary": {
+    "month": "मे - 2024",
+    "totalEarnings": 675400,
+    "totalExpense": 328750,
+    "totalProfit": 346650
+  },
+  "machineSummary": [
+    { "id": "m1", "machineName": "JCB 3DX", "hoursOrTrips": "85 तास", "totalEarnings": 125000 },
+    { "id": "m2", "machineName": "POCLAIN 210", "hoursOrTrips": "72 तास", "totalEarnings": 110500 },
+    { "id": "m3", "machineName": "TATA TIPPER", "hoursOrTrips": "68 फेऱ्या", "totalEarnings": 95800 },
+    { "id": "m4", "machineName": "JCB NXT", "hoursOrTrips": "40 तास", "totalEarnings": 70600 },
+    { "id": "m5", "machineName": "TRACTOR", "hoursOrTrips": "35 तास", "totalEarnings": 45300 }
+  ]
+}

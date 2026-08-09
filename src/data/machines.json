@@ -1,0 +1,37 @@
+[
+  {
+    "id": "m1",
+    "name": "JCB 3DX",
+    "modelNumber": "3DX Super",
+    "registrationNumber": "MH 09 AB 1234",
+    "hourlyRate": 1500
+  },
+  {
+    "id": "m2",
+    "name": "POCLAIN 210",
+    "modelNumber": "PC 210 LC",
+    "registrationNumber": "MH 09 CD 5678",
+    "hourlyRate": 2200
+  },
+  {
+    "id": "m3",
+    "name": "TATA TIPPER",
+    "modelNumber": "Prima 2830.K",
+    "registrationNumber": "MH 09 EF 9012",
+    "hourlyRate": 1400
+  },
+  {
+    "id": "m4",
+    "name": "JCB NXT",
+    "modelNumber": "NXT 221 LC",
+    "registrationNumber": "MH 09 GH 3456",
+    "hourlyRate": 2000
+  },
+  {
+    "id": "m5",
+    "name": "TRACTOR",
+    "modelNumber": "Mahindra 575 DI",
+    "registrationNumber": "MH 09 IJ 7890",
+    "hourlyRate": 900
+  }
+]
