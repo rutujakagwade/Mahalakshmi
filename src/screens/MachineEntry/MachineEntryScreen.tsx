@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Alert } from 'react-native';
 import { AppHeader } from '../../components/AppHeader';
 import { AppInput } from '../../components/AppInput';
@@ -9,13 +9,19 @@ import { AppModal } from '../../components/AppModal';
 import { formatCurrency } from '../../utils/currency';
 import { AppDatePicker } from '../../components/AppDatePicker';
 import { DummyData } from '../../constants/DummyData';
+import { getTodayFormatted } from '../../utils/date';
+import { CustomerService, MachineEntryService, MachineService } from '../../utils/api';
+import { colors, radii } from '../../theme';
+import { CheckCircle } from 'lucide-react-native';
 
 interface MachineEntryScreenProps {
   onBack: () => void;
 }
 
 export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }) => {
-  const [date, setDate] = useState<string>('20/05/2024');
+  const [date, setDate] = useState<string>(getTodayFormatted());
+  const [machinesList, setMachinesList] = useState(DummyData.machines);
+  const [customersList, setCustomersList] = useState(DummyData.customers);
   const [selectedMachine, setSelectedMachine] = useState<string>(
     DummyData.machines.length > 0
       ? `${DummyData.machines[0].name} (${DummyData.machines[0].registrationNumber})`
@@ -24,13 +30,12 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
   const [customer, setCustomer] = useState<string>(
     DummyData.customers.length > 0 ? DummyData.customers[0].name : ''
   );
-  const [location, setLocation] = useState<string>('गोकुळ शिरगाव');
-  const [description, setDescription] = useState<string>('खाड्डा खणकाम');
-  const [hoursOrTrips, setHoursOrTrips] = useState<string>('8 तास');
-  const [amount, setAmount] = useState<string>('12,000');
+  const [location, setLocation] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [hoursOrTrips, setHoursOrTrips] = useState<string>('');
+  const [amount, setAmount] = useState<string>('');
   const [paymentType, setPaymentType] = useState<string>('रोख');
 
-  // Add Machine Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [newMachineName, setNewMachineName] = useState<string>('');
   const [newMachineModel, setNewMachineModel] = useState<string>('');
@@ -45,8 +50,64 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
 
   const [savedMsg, setSavedMsg] = useState<string>('');
 
-  const handleSave = () => {
+  const loadData = async () => {
+    try {
+      const [mRes, cRes] = await Promise.all([
+        MachineService.getAll(),
+        CustomerService.getAll(),
+      ]);
+      if (Array.isArray(mRes) && mRes.length > 0) {
+        setMachinesList(mRes);
+      }
+      if (Array.isArray(cRes) && cRes.length > 0) {
+        setCustomersList(cRes);
+      }
+    } catch {
+      // Local fallback
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleSave = async () => {
     const numericAmt = parseFloat(amount.replace(/,/g, '')) || 0;
+    const parts = date.split('/');
+    const isoDate = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : new Date().toISOString().split('T')[0];
+
+    const matchedMachine = machinesList.find(
+      (m: any) => `${m.name} (${m.registrationNumber || m.registration_number})` === selectedMachine || m.name === selectedMachine
+    );
+    const matchedCustomer = customersList.find((c: any) => c.name === customer);
+
+    const payTypeMap: Record<string, 'cash' | 'online' | 'credit'> = {
+      'रोख': 'cash',
+      'ऑनलाइन': 'online',
+      'उधारी': 'credit',
+    };
+
+    const numHours = parseFloat(hoursOrTrips.replace(/[^0-9.]/g, '')) || 0;
+    const unit = hoursOrTrips.includes('फेऱ्या') ? 'trips' : 'hours';
+
+    try {
+      if (matchedMachine?.id) {
+        await MachineEntryService.create({
+          machine_id: matchedMachine.id,
+          customer_id: matchedCustomer?.id || null,
+          entry_date: isoDate,
+          location,
+          work_description: description,
+          hours_or_trips: numHours,
+          hours_unit: unit,
+          amount: numericAmt,
+          payment_type: payTypeMap[paymentType] || 'cash',
+        });
+      }
+    } catch {
+      // Local update
+    }
+
     if (numericAmt > 0) {
       const machineName = selectedMachine.split(' ')[0] + ' ' + (selectedMachine.split(' ')[1] || '');
       setMachineSummaries((prev) => [
@@ -75,8 +136,7 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
     const updatedMachines = [...DummyData.machines, newMachine];
     DummyData.machines = updatedMachines;
     setSelectedMachine(`${newMachine.name} (${newMachine.registrationNumber})`);
-    
-    // Reset form and close
+
     setNewMachineName('');
     setNewMachineModel('');
     setNewMachineReg('');
@@ -97,20 +157,15 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {savedMsg && (
           <View style={styles.successBanner}>
+            <CheckCircle size={16} color={colors.success} />
             <Text style={styles.successBannerText}>{savedMsg}</Text>
           </View>
         )}
 
-        {/* Machine Entry Form */}
+        {/* Form */}
         <AppCard style={styles.formCard}>
-          {/* Date */}
-          <AppDatePicker
-            label="दिनांक"
-            value={date}
-            onChange={setDate}
-          />
+          <AppDatePicker label="दिनांक" value={date} onChange={setDate} />
 
-          {/* Machine Selection */}
           <AppDropdown
             label="मशीन निवडा"
             value={selectedMachine}
@@ -121,7 +176,6 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
             }))}
           />
 
-          {/* Customer */}
           <AppDropdown
             label="ग्राहक"
             value={customer}
@@ -132,39 +186,11 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
             }))}
           />
 
-          {/* Work Location */}
-          <AppInput
-            label="कामाचे ठिकाण"
-            value={location}
-            onChangeText={setLocation}
-            placeholder="उदा. गोकुळ शिरगाव"
-          />
+          <AppInput label="कामाचे ठिकाण" value={location} onChangeText={setLocation} placeholder="उदा. गोकुळ शिरगाव" />
+          <AppInput label="कामाचे वर्णन" value={description} onChangeText={setDescription} placeholder="उदा. खाड्डा खणकाम" />
+          <AppInput label="तास / फेऱ्या" value={hoursOrTrips} onChangeText={setHoursOrTrips} placeholder="उदा. 8 तास" />
+          <AppInput label="रक्कम (₹)" value={amount} onChangeText={setAmount} placeholder="उदा. 12000" keyboardType="numeric" />
 
-          {/* Work Description */}
-          <AppInput
-            label="कामाचे वर्णन"
-            value={description}
-            onChangeText={setDescription}
-            placeholder="उदा. खाड्डा खणकाम"
-          />
-
-          {/* Hours or Trips */}
-          <AppInput
-            label="तास / फेऱ्या"
-            value={hoursOrTrips}
-            onChangeText={setHoursOrTrips}
-            placeholder="उदा. 8 तास किंवा 5 फेऱ्या"
-          />
-
-          {/* Amount */}
-          <AppInput
-            label="रक्कम (₹)"
-            value={amount}
-            onChangeText={setAmount}
-            placeholder="उदा. 12000"
-          />
-
-          {/* Payment Type */}
           <AppDropdown
             label="पेमेंट प्रकार"
             value={paymentType}
@@ -176,16 +202,15 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
             ]}
           />
 
-          {/* Save Button */}
           <View style={styles.btnWrapper}>
             <AppButton title="सेव्ह करा" onPress={handleSave} variant="primary" />
           </View>
         </AppCard>
 
-        {/* Today Machine Summary */}
+        {/* Machine Summary */}
         <View style={styles.summaryContainer}>
           <Text style={styles.summaryTitle}>आजची मशीन सारांश</Text>
-          <AppCard style={styles.summaryCard}>
+          <AppCard variant="elevated" style={styles.summaryCard}>
             {machineSummaries.map((item, index) => (
               <View key={index} style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{item.name}</Text>
@@ -196,38 +221,13 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
         </View>
       </ScrollView>
 
-      {/* Add Machine Modal Popup */}
-      <AppModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="नवीन मशीन जोडा"
-      >
+      {/* Add Machine Modal */}
+      <AppModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="नवीन मशीन जोडा">
         <View style={styles.modalContent}>
-          <AppInput
-            label="मशीनचे नाव"
-            value={newMachineName}
-            onChangeText={setNewMachineName}
-            placeholder="उदा. JCB 3DX"
-          />
-          <AppInput
-            label="मॉडेल"
-            value={newMachineModel}
-            onChangeText={setNewMachineModel}
-            placeholder="उदा. 3DX Super"
-          />
-          <AppInput
-            label="नोंदणी क्रमांक (रजिस्ट्रेशन नंबर)"
-            value={newMachineReg}
-            onChangeText={setNewMachineReg}
-            placeholder="उदा. MH 09 AB 1234"
-          />
-          <AppInput
-            label="तास दर (₹/तास)"
-            value={newMachineRate}
-            onChangeText={setNewMachineRate}
-            placeholder="उदा. 1500"
-            keyboardType="numeric"
-          />
+          <AppInput label="मशीनचे नाव" value={newMachineName} onChangeText={setNewMachineName} placeholder="उदा. JCB 3DX" required />
+          <AppInput label="मॉडेल" value={newMachineModel} onChangeText={setNewMachineModel} placeholder="उदा. 3DX Super" />
+          <AppInput label="नोंदणी क्रमांक" value={newMachineReg} onChangeText={setNewMachineReg} placeholder="उदा. MH 09 AB 1234" required />
+          <AppInput label="तास दर (₹/तास)" value={newMachineRate} onChangeText={setNewMachineRate} placeholder="उदा. 1500" keyboardType="numeric" />
           <View style={styles.modalBtn}>
             <AppButton title="सेव्ह करा" onPress={handleAddMachine} variant="primary" />
           </View>
@@ -240,7 +240,7 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#FAF7F2',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -251,61 +251,65 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   successBanner: {
-    backgroundColor: '#d1fae5',
+    backgroundColor: colors.successBg,
     borderWidth: 1,
-    borderColor: '#6ee7b7',
+    borderColor: '#A7F3D0',
     padding: 12,
-    borderRadius: 12,
+    borderRadius: radii.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   successBannerText: {
-    color: '#065f46',
+    color: colors.success,
     fontSize: 12,
     fontWeight: '700',
   },
   formCard: {
     padding: 16,
-    gap: 12,
+    gap: 14,
   },
   btnWrapper: {
-    paddingTop: 8,
+    paddingTop: 4,
   },
   summaryContainer: {
     gap: 8,
   },
   summaryTitle: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#292524',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: 4,
   },
   summaryCard: {
     padding: 14,
-    backgroundColor: '#f5f5f4',
     gap: 10,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#e7e5e4',
+    borderBottomColor: colors.borderLight,
   },
   summaryLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#292524',
+    color: colors.textPrimary,
   },
   summaryAmount: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#047857',
+    color: colors.earnings,
   },
   modalContent: {
-    gap: 12,
+    gap: 14,
   },
   modalBtn: {
-    paddingTop: 8,
+    paddingTop: 4,
   },
 });
 

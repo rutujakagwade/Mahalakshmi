@@ -1,7 +1,7 @@
 import { colors } from './colors';
 import { fonts } from './fonts';
-import { spacing } from './spacing';
+import { spacing, radii, shadows } from './spacing';
 import { typography } from './typography';
 
-export { colors, fonts, spacing, typography };
-export default { colors, fonts, spacing, typography };
+export { colors, fonts, spacing, radii, shadows, typography };
+export default { colors, fonts, spacing, radii, shadows, typography };

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { Calendar } from 'lucide-react-native';
+import { colors } from '../theme';
 
 interface AppDatePickerProps {
-  value: string; // Format: DD/MM/YYYY
+  value: string;
   onChange: (dateStr: string) => void;
   label?: string;
 }
@@ -11,7 +13,6 @@ interface AppDatePickerProps {
 export const AppDatePicker: React.FC<AppDatePickerProps> = ({ value, onChange, label }) => {
   const [show, setShow] = useState(false);
 
-  // Parse DD/MM/YYYY to Date object
   const parseDate = (str: string): Date => {
     try {
       const parts = str.split('/');
@@ -47,8 +48,15 @@ export const AppDatePicker: React.FC<AppDatePickerProps> = ({ value, onChange, l
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <TouchableOpacity style={styles.pickerButton} onPress={() => setShow(true)}>
-        <Text style={styles.dateText}>{value || 'तारीख निवडा'}</Text>
+      <TouchableOpacity
+        style={styles.pickerButton}
+        onPress={() => setShow(true)}
+        activeOpacity={0.7}
+      >
+        <Calendar size={16} color={colors.textMuted} style={styles.icon} />
+        <Text style={[styles.dateText, !value && styles.placeholder]}>
+          {value || 'तारीख निवडा'}
+        </Text>
       </TouchableOpacity>
 
       {show && (
@@ -71,20 +79,30 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#44403c',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   pickerButton: {
-    backgroundColor: '#fafaf9',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
-    borderColor: '#d6d3d1',
+    borderColor: colors.border,
     borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+  },
+  icon: {
+    marginRight: 8,
   },
   dateText: {
     fontSize: 14,
-    color: '#1c1917',
+    color: colors.textPrimary,
+    fontWeight: '500',
+  },
+  placeholder: {
+    color: colors.textMuted,
+    fontWeight: '400',
   },
 });
 

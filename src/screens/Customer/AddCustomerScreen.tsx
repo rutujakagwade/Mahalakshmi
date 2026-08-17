@@ -24,7 +24,7 @@ export const AddCustomerScreen: React.FC<{ onBack: () => void }> = ({ onBack }) 
         <AppCard style={tw`space-y-3 p-4`}>
           <AppInput label="ग्राहकाचे नाव" value={name} onChangeText={setName} placeholder="उदा. संतोष पाटील" />
           <AppInput label="गाव / ठिकाण" value={location} onChangeText={setLocation} placeholder="उदा. गोकुळ शिरगाव" />
-          <AppInput label="मोबाईल नंबर" value={phone} onChangeText={setPhone} placeholder="उदा. 9765432101" type="tel" />
+          <AppInput label="मोबाईल नंबर" value={phone} onChangeText={setPhone} placeholder="उदा. 9765432101" keyboardType="phone-pad" />
           <AppButton title="सेव्ह करा" onPress={handleSave} variant="primary" />
         </AppCard>
       </View>

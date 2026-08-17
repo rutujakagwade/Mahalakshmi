@@ -23,7 +23,7 @@ export const EditCustomerScreen: React.FC<{ onBack: () => void }> = ({ onBack })
         <AppCard style={tw`space-y-3 p-4`}>
           <AppInput label="ग्राहकाचे नाव" value={name} onChangeText={setName} />
           <AppInput label="गाव / ठिकाण" value={location} onChangeText={setLocation} />
-          <AppInput label="मोबाईल नंबर" value={phone} onChangeText={setPhone} type="tel" />
+          <AppInput label="मोबाईल नंबर" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
           <AppButton title="अपडेट करा" onPress={handleSave} variant="primary" />
         </AppCard>
       </View>

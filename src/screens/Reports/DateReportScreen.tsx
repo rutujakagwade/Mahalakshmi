@@ -1,112 +1,135 @@
 import tw from 'twrnc';
-import { View, Text, TouchableOpacity, TextInput, ScrollView } from 'react-native';
-import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import { AppHeader } from '../../components/AppHeader';
-import { Calendar } from 'lucide-react-native';
 import { formatCurrency } from '../../utils/currency';
 import { AppDatePicker } from '../../components/AppDatePicker';
 import { DummyData } from '../../constants/DummyData';
+import { ReportService } from '../../utils/api';
+import { colors, radii, shadows } from '../../theme';
+import { Search } from 'lucide-react-native';
 
 interface DateReportScreenProps {
   onBack: () => void;
 }
 
 export const DateReportScreen: React.FC<DateReportScreenProps> = ({ onBack }) => {
-  const [fromDate, setFromDate] = useState<string>('01/05/2024');
-  const [toDate, setToDate] = useState<string>('20/05/2024');
+  const [fromDate, setFromDate] = useState<string>('01/08/2026');
+  const [toDate, setToDate] = useState<string>('15/08/2026');
 
-  const summary = DummyData.reports.dateRangeSummary;
-  const rows = DummyData.reports.datewiseRows;
+  const [summary, setSummary] = useState(DummyData.reports.dateRangeSummary);
+  const [rows, setRows] = useState(DummyData.reports.datewiseRows);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const fetchDateRangeReport = async () => {
+    const fromParts = fromDate.split('/');
+    const toParts = toDate.split('/');
+    const isoFrom = fromParts.length === 3 ? `${fromParts[2]}-${fromParts[1]}-${fromParts[0]}` : undefined;
+    const isoTo = toParts.length === 3 ? `${toParts[2]}-${toParts[1]}-${toParts[0]}` : undefined;
+
+    setLoading(true);
+    try {
+      const data = await ReportService.getDateReport(isoFrom, isoTo);
+      if (data?.dateRangeSummary) {
+        setSummary(data.dateRangeSummary);
+      }
+      if (Array.isArray(data?.datewiseRows)) {
+        setRows(data.datewiseRows);
+      }
+    } catch {
+      // Local fallback
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDateRangeReport();
+  }, []);
 
   return (
-    <View style={tw`flex-1 w-full bg-[#FAF7F2]`}>
+    <View style={tw`flex-1 w-full bg-[${colors.background}]`}>
       <AppHeader
         title="तारीखनुसार हिशोब"
         showBack={true}
         onBackPress={onBack}
-        rightActionIcon="calendar"
       />
 
-      <ScrollView style={tw`flex-1`} contentContainerStyle={tw`p-3.5 max-w-lg mx-auto w-full gap-3.5 pb-8`}>
-        {/* Date Filters Card */}
-        <View style={tw`bg-white rounded-xl p-3 border border-stone-200 shadow-sm gap-2.5`}>
-          <View style={tw`flex flex-row gap-2`}>
+      <ScrollView style={tw`flex-1`} contentContainerStyle={tw`p-4 max-w-lg mx-auto w-full gap-4 pb-8`}>
+        {/* Date Filters */}
+        <View style={tw`bg-white rounded-2xl p-4 border border-[${colors.border}] gap-3`}>
+          <View style={tw`flex flex-row gap-3`}>
             <View style={tw`flex-1`}>
-              <AppDatePicker
-                label="पासून"
-                value={fromDate}
-                onChange={setFromDate}
-              />
+              <AppDatePicker label="पासून" value={fromDate} onChange={setFromDate} />
             </View>
             <View style={tw`flex-1`}>
-              <AppDatePicker
-                label="पर्यंत"
-                value={toDate}
-                onChange={setToDate}
-              />
+              <AppDatePicker label="पर्यंत" value={toDate} onChange={setToDate} />
             </View>
           </View>
 
           <TouchableOpacity
-            onPress={() => alert('माहिती फिल्टर झाली')}
-            style={tw`w-full bg-[#6B121C] py-2.5 rounded-lg flex items-center justify-center`}
+            onPress={fetchDateRangeReport}
+            activeOpacity={0.7}
+            style={tw`w-full bg-[${colors.primary}] py-3 rounded-xl flex flex-row items-center justify-center gap-2`}
           >
+            <Search size={16} color="white" />
             <Text style={tw`text-white font-bold text-xs`}>शोधा</Text>
           </TouchableOpacity>
         </View>
 
-        {/* 3 Metrics Summary Bar */}
-        <View style={tw`flex flex-row gap-2`}>
-          <View style={tw`flex-1 bg-emerald-50 border border-emerald-200 rounded-xl p-2 items-center`}>
-            <Text style={tw`text-[10px] font-medium text-stone-600 mb-0.5`}>एकूण कमाई</Text>
-            <Text style={tw`font-extrabold text-emerald-700 text-xs sm:text-sm`}>
+        {/* Summary Cards */}
+        <View style={tw`flex flex-row gap-3`}>
+          <View style={tw`flex-1 bg-[${colors.earningsSurface}] border border-green-200 rounded-xl p-3 items-center`}>
+            <Text style={tw`text-[10px] font-semibold text-[${colors.textTertiary}] mb-1`}>एकूण कमाई</Text>
+            <Text style={tw`font-extrabold text-[${colors.earnings}] text-sm`}>
               {formatCurrency(summary.totalEarnings)}
             </Text>
           </View>
 
-          <View style={tw`flex-1 bg-red-50 border border-red-200 rounded-xl p-2 items-center`}>
-            <Text style={tw`text-[10px] font-medium text-stone-600 mb-0.5`}>एकूण खर्च</Text>
-            <Text style={tw`font-extrabold text-red-600 text-xs sm:text-sm`}>
+          <View style={tw`flex-1 bg-[${colors.expenseSurface}] border border-red-200 rounded-xl p-3 items-center`}>
+            <Text style={tw`text-[10px] font-semibold text-[${colors.textTertiary}] mb-1`}>एकूण खर्च</Text>
+            <Text style={tw`font-extrabold text-[${colors.expense}] text-sm`}>
               {formatCurrency(summary.totalExpense)}
             </Text>
           </View>
 
-          <View style={tw`flex-1 bg-emerald-50 border border-emerald-200 rounded-xl p-2 items-center`}>
-            <Text style={tw`text-[10px] font-medium text-stone-600 mb-0.5`}>नफा</Text>
-            <Text style={tw`font-extrabold text-emerald-700 text-xs sm:text-sm`}>
+          <View style={tw`flex-1 bg-[${colors.earningsSurface}] border border-green-200 rounded-xl p-3 items-center`}>
+            <Text style={tw`text-[10px] font-semibold text-[${colors.textTertiary}] mb-1`}>नफा</Text>
+            <Text style={tw`font-extrabold text-[${colors.earnings}] text-sm`}>
               {formatCurrency(summary.totalProfit)}
             </Text>
           </View>
         </View>
 
         {/* Ledger Table */}
-        <View style={tw`bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm`}>
-          {/* Table Header */}
-          <View style={tw`flex flex-row bg-stone-100 p-2.5 border-b border-stone-200`}>
-            <Text style={tw`flex-1 text-center font-bold text-xs text-stone-700`}>दिनांक</Text>
-            <Text style={tw`flex-1 text-center font-bold text-xs text-stone-700`}>कमाई</Text>
-            <Text style={tw`flex-1 text-center font-bold text-xs text-stone-700`}>खर्च</Text>
-            <Text style={tw`flex-1 text-center font-bold text-xs text-stone-700`}>नफा</Text>
+        <View style={tw`bg-white rounded-2xl border border-[${colors.border}] overflow-hidden`}>
+          {/* Header */}
+          <View style={tw`flex flex-row bg-[${colors.surfaceTertiary}] py-3 px-3 border-b border-[${colors.border}]`}>
+            <Text style={tw`flex-1 text-center font-bold text-[11px] text-[${colors.textTertiary}]`}>दिनांक</Text>
+            <Text style={tw`flex-1 text-center font-bold text-[11px] text-[${colors.textTertiary}]`}>कमाई</Text>
+            <Text style={tw`flex-1 text-center font-bold text-[11px] text-[${colors.textTertiary}]`}>खर्च</Text>
+            <Text style={tw`flex-1 text-center font-bold text-[11px] text-[${colors.textTertiary}]`}>नफा</Text>
           </View>
 
-          {/* Table Body */}
-          <View style={tw`divide-y divide-stone-100`}>
-            {rows.map((row) => (
-              <View key={row.id} style={tw`flex flex-row p-2.5 items-center`}>
-                <Text style={tw`flex-1 text-center text-xs font-medium text-stone-800`}>{row.date}</Text>
-                <Text style={tw`flex-1 text-center text-xs font-semibold text-emerald-700`}>{formatCurrency(row.earnings)}</Text>
-                <Text style={tw`flex-1 text-center text-xs font-semibold text-red-600`}>{formatCurrency(row.expense)}</Text>
-                <Text style={tw`flex-1 text-center text-xs font-bold text-emerald-700`}>{formatCurrency(row.profit)}</Text>
-              </View>
-            ))}
-          </View>
+          {/* Body */}
+          {rows.map((row, index) => (
+            <View
+              key={row.id}
+              style={tw`flex flex-row py-3 px-3 items-center border-b border-[${colors.borderLight}] ${index % 2 === 0 ? `bg-[${colors.surfaceSecondary}]` : 'bg-white'}`}
+            >
+              <Text style={tw`flex-1 text-center text-xs font-medium text-[${colors.textPrimary}]`}>{row.date}</Text>
+              <Text style={tw`flex-1 text-center text-xs font-semibold text-[${colors.earnings}]`}>{formatCurrency(row.earnings)}</Text>
+              <Text style={tw`flex-1 text-center text-xs font-semibold text-[${colors.expense}]`}>{formatCurrency(row.expense)}</Text>
+              <Text style={tw`flex-1 text-center text-xs font-bold text-[${colors.earnings}]`}>{formatCurrency(row.profit)}</Text>
+            </View>
+          ))}
 
-          {/* Table Footer Total */}
-          <View style={tw`flex flex-row bg-amber-50 p-2.5 border-t-2 border-stone-300`}>
-            <Text style={tw`flex-1 text-center font-extrabold text-xs text-stone-900`}>एकूण</Text>
-            <Text style={tw`flex-1 text-center font-extrabold text-xs text-emerald-700`}>{formatCurrency(summary.totalEarnings)}</Text>
-            <Text style={tw`flex-1 text-center font-extrabold text-xs text-red-600`}>{formatCurrency(summary.totalExpense)}</Text>
-            <Text style={tw`flex-1 text-center font-extrabold text-xs text-emerald-700`}>{formatCurrency(summary.totalProfit)}</Text>
+          {/* Footer Total */}
+          <View style={tw`flex flex-row bg-[${colors.goldLight}] py-3 px-3 border-t-2 border-[${colors.gold}]`}>
+            <Text style={tw`flex-1 text-center font-extrabold text-xs text-[${colors.textPrimary}]`}>एकूण</Text>
+            <Text style={tw`flex-1 text-center font-extrabold text-xs text-[${colors.earnings}]`}>{formatCurrency(summary.totalEarnings)}</Text>
+            <Text style={tw`flex-1 text-center font-extrabold text-xs text-[${colors.expense}]`}>{formatCurrency(summary.totalExpense)}</Text>
+            <Text style={tw`flex-1 text-center font-extrabold text-xs text-[${colors.earnings}]`}>{formatCurrency(summary.totalProfit)}</Text>
           </View>
         </View>
       </ScrollView>

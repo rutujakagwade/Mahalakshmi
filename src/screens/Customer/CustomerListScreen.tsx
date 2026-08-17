@@ -8,6 +8,9 @@ import { AppInput } from '../../components/AppInput';
 import { AppButton } from '../../components/AppButton';
 import { Customer } from '../../types/customer';
 import { DummyData } from '../../constants/DummyData';
+import { CustomerService } from '../../utils/api';
+import { colors, radii } from '../../theme';
+import { Users } from 'lucide-react-native';
 
 interface CustomerListScreenProps {
   onBack: () => void;
@@ -16,13 +19,32 @@ interface CustomerListScreenProps {
 export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }) => {
   const [customers, setCustomers] = useState<Customer[]>(DummyData.customers as Customer[]);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [name, setName] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
+
+  const fetchCustomers = async (search?: string) => {
+    try {
+      setLoading(true);
+      const data = await CustomerService.getAll(search);
+      if (Array.isArray(data)) {
+        setCustomers(data);
+        DummyData.customers = data;
+      }
+    } catch {
+      // Fallback gracefully to local state
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchCustomers();
+  }, []);
 
   const avatarColors = ['bg-blue-600', 'bg-orange-600', 'bg-teal-600', 'bg-emerald-600', 'bg-purple-600'];
 
@@ -58,17 +80,22 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }
         {
           text: 'होय, हटवा',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             const updated = customers.filter((c) => c.id !== id);
             setCustomers(updated);
             DummyData.customers = updated;
+            try {
+              await CustomerService.delete(id);
+            } catch {
+              // Local state updated
+            }
           },
         },
       ]
     );
   };
 
-  const handleSaveModal = () => {
+  const handleSaveModal = async () => {
     if (!name.trim()) {
       Alert.alert('त्रुटी', 'कृपया ग्राहकाचे नाव टाका');
       return;
@@ -80,6 +107,11 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }
       );
       setCustomers(updated);
       DummyData.customers = updated;
+      try {
+        await CustomerService.update(editingCustomer.id, { name, location, phone });
+      } catch {
+        // Local updated
+      }
     } else {
       const newCustomer: Customer = {
         id: `c_${Date.now()}`,
@@ -90,6 +122,14 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }
       const updated = [newCustomer, ...customers];
       setCustomers(updated);
       DummyData.customers = updated;
+      try {
+        const created = await CustomerService.create({ name, location, phone: phone || '9000000000' });
+        if (created?.id) {
+          fetchCustomers();
+        }
+      } catch {
+        // Local updated
+      }
     }
 
     setIsModalOpen(false);
@@ -111,14 +151,20 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Search bar */}
           <AppSearch
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="शोधा..."
+            placeholder="ग्राहक शोधा..."
           />
 
-          {/* Customer Cards List */}
+          {/* Customer Count */}
+          <View style={styles.countRow}>
+            <Text style={styles.countText}>
+              एकूण ग्राहक: <Text style={styles.countNumber}>{filteredCustomers.length}</Text>
+            </Text>
+          </View>
+
+          {/* Customer Cards */}
           <View style={styles.cardList}>
             {filteredCustomers.length > 0 ? (
               filteredCustomers.map((customer, index) => (
@@ -132,14 +178,18 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }
               ))
             ) : (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>कोणताही ग्राहक आढळला नाही</Text>
+                <View style={styles.emptyIcon}>
+                  <Users size={40} color={colors.textMuted} />
+                </View>
+                <Text style={styles.emptyTitle}>ग्राहक आढळले नाहीत</Text>
+                <Text style={styles.emptySubtitle}>शोध क्वेरी बदला किंवा नवीन ग्राहक जोडा</Text>
               </View>
             )}
           </View>
         </ScrollView>
       </View>
 
-      {/* Footer Total Customers Bar */}
+      {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           एकूण ग्राहक :{' '}
@@ -147,18 +197,39 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }
         </Text>
       </View>
 
-      {/* Add / Edit Customer Modal */}
+      {/* Add / Edit Modal */}
       <AppModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingCustomer ? 'ग्राहक संपादित करा' : 'नवीन ग्राहक जोडा'}
       >
         <View style={styles.modalContent}>
-          <AppInput label="ग्राहकाचे नाव" value={name} onChangeText={setName} placeholder="उदा. संतोष पाटील" />
-          <AppInput label="गाव / ठिकाण" value={location} onChangeText={setLocation} placeholder="उदा. गोकुळ शिरगाव" />
-          <AppInput label="मोबाईल नंबर" value={phone} onChangeText={setPhone} placeholder="उदा. 9765432101" keyboardType="phone-pad" />
+          <AppInput
+            label="ग्राहकाचे नाव"
+            value={name}
+            onChangeText={setName}
+            placeholder="उदा. संतोष पाटील"
+            required
+          />
+          <AppInput
+            label="गाव / ठिकाण"
+            value={location}
+            onChangeText={setLocation}
+            placeholder="उदा. गोकुळ शिरगाव"
+          />
+          <AppInput
+            label="मोबाईल नंबर"
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="उदा. 9765432101"
+            keyboardType="phone-pad"
+          />
           <View style={styles.modalBtn}>
-            <AppButton title="सेव्ह करा" onPress={handleSaveModal} variant="primary" />
+            <AppButton
+              title={editingCustomer ? 'अपडेट करा' : 'सेव्ह करा'}
+              onPress={handleSaveModal}
+              variant="primary"
+            />
           </View>
         </View>
       </AppModal>
@@ -169,7 +240,7 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#FAF7F2',
+    backgroundColor: colors.background,
     flexDirection: 'column',
     justifyContent: 'space-between',
   },
@@ -182,44 +253,72 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 32,
-    gap: 14,
+    gap: 12,
+  },
+  countRow: {
+    paddingHorizontal: 2,
+  },
+  countText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textTertiary,
+  },
+  countNumber: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   cardList: {
     gap: 10,
-    paddingTop: 4,
+    paddingTop: 2,
   },
   emptyState: {
-    paddingVertical: 32,
+    paddingVertical: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyText: {
-    color: '#78716c',
-    fontSize: 14,
-    fontWeight: '600',
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surfaceTertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  emptySubtitle: {
+    color: colors.textTertiary,
+    fontSize: 12,
+    fontWeight: '500',
   },
   footer: {
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: '#f5f5f4',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#e7e5e4',
+    borderTopColor: colors.border,
     alignItems: 'center',
   },
   footerText: {
-    fontWeight: '700',
-    fontSize: 14,
-    color: '#1c1917',
+    fontWeight: '600',
+    fontSize: 13,
+    color: colors.textSecondary,
   },
   footerCount: {
-    color: '#6B121C',
-    fontSize: 16,
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: '700',
   },
   modalContent: {
-    gap: 12,
+    gap: 14,
   },
   modalBtn: {
-    paddingTop: 8,
+    paddingTop: 4,
   },
 });
 

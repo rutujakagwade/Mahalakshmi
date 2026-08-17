@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Pencil, Trash2, User } from 'lucide-react-native';
+import { Pencil, Trash2, User, MapPin, Phone } from 'lucide-react-native';
 import { Customer } from '../types/customer';
+import { colors, radii, shadows } from '../theme';
 
 interface CustomerCardProps {
   customer: Customer;
@@ -10,13 +11,12 @@ interface CustomerCardProps {
   avatarBgColor?: string;
 }
 
-// Map twrnc color class names to actual hex colors
-const colorMap: Record<string, string> = {
-  'bg-blue-600': '#2563eb',
-  'bg-orange-600': '#ea580c',
-  'bg-teal-600': '#0d9488',
+const avatarColors: Record<string, string> = {
+  'bg-blue-600': '#2563EB',
+  'bg-orange-600': '#EA580C',
+  'bg-teal-600': '#0D9488',
   'bg-emerald-600': '#059669',
-  'bg-purple-600': '#9333ea',
+  'bg-purple-600': '#9333EA',
 };
 
 export const CustomerCard: React.FC<CustomerCardProps> = ({
@@ -25,37 +25,53 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
   onDelete,
   avatarBgColor = 'bg-blue-600',
 }) => {
-  const avatarColor = colorMap[avatarBgColor] ?? '#2563eb';
+  const avatarColor = avatarColors[avatarBgColor] ?? '#2563EB';
+  const initials = customer.name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <View style={styles.card}>
-      {/* Left: Avatar + Info */}
       <View style={styles.leftSection}>
         <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
-          <User size={20} color="#fff" />
+          <Text style={styles.avatarText}>{initials}</Text>
         </View>
         <View style={styles.infoBlock}>
-          <Text style={styles.name}>{customer.name}</Text>
-          <Text style={styles.location}>{customer.location}</Text>
-          <Text style={styles.phone}>{customer.phone}</Text>
+          <Text style={styles.name} numberOfLines={1}>{customer.name}</Text>
+          {customer.location ? (
+            <View style={styles.detailRow}>
+              <MapPin size={11} color={colors.textMuted} />
+              <Text style={styles.location} numberOfLines={1}>{customer.location}</Text>
+            </View>
+          ) : null}
+          {customer.phone ? (
+            <View style={styles.detailRow}>
+              <Phone size={11} color={colors.textMuted} />
+              <Text style={styles.phone}>{customer.phone}</Text>
+            </View>
+          ) : null}
         </View>
       </View>
 
-      {/* Right: Action Buttons */}
       <View style={styles.actions}>
         <TouchableOpacity
           onPress={() => onEdit(customer)}
           style={styles.editBtn}
           accessibilityLabel="Edit customer"
+          activeOpacity={0.7}
         >
-          <Pencil size={16} color="#57534e" />
+          <Pencil size={14} color={colors.textSecondary} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => onDelete(customer.id)}
           style={styles.deleteBtn}
           accessibilityLabel="Delete customer"
+          activeOpacity={0.7}
         >
-          <Trash2 size={16} color="#dc2626" />
+          <Trash2 size={14} color={colors.error} />
         </TouchableOpacity>
       </View>
     </View>
@@ -64,20 +80,16 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingVertical: 12,
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    paddingVertical: 14,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#e7e5e4',
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 2,
+    ...shadows.xs,
   },
   leftSection: {
     flexDirection: 'row',
@@ -92,23 +104,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '700',
+  },
   infoBlock: {
     flex: 1,
+    gap: 2,
   },
   name: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1c1917',
-    marginBottom: 2,
+    color: colors.textPrimary,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   location: {
     fontSize: 12,
-    color: '#57534e',
-    marginBottom: 1,
+    color: colors.textTertiary,
+    flex: 1,
   },
   phone: {
     fontSize: 12,
-    color: '#78716c',
+    color: colors.textTertiary,
     fontVariant: ['tabular-nums'],
   },
   actions: {
@@ -118,13 +140,13 @@ const styles = StyleSheet.create({
   },
   editBtn: {
     padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f4',
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceTertiary,
   },
   deleteBtn: {
     padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#fef2f2',
+    borderRadius: radii.md,
+    backgroundColor: colors.errorBg,
   },
 });
 

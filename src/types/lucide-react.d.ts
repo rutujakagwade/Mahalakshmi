@@ -37,6 +37,14 @@ declare module 'lucide-react-native' {
   export const Info: React.ComponentType<any>;
   export const LogOut: React.ComponentType<any>;
   export const ArrowRight: React.ComponentType<any>;
+  export const Check: React.ComponentType<any>;
+  export const Settings: React.ComponentType<any>;
+  export const MoreVertical: React.ComponentType<any>;
+  export const ArrowUpRight: React.ComponentType<any>;
+  export const CheckCircle: React.ComponentType<any>;
+  export const Wrench: React.ComponentType<any>;
+  export const Wifi: React.ComponentType<any>;
+  export const ChevronRight: React.ComponentType<any>;
   // fallback for other icons
   const icons: { [key: string]: React.ComponentType<any> };
   export default icons;

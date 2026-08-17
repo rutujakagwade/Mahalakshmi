@@ -1,14 +1,19 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native';
+import { colors } from '../theme';
 
-interface AppInputProps {
+interface AppInputProps extends TextInputProps {
   label?: string;
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
   keyboardType?: 'default' | 'numeric' | 'phone-pad';
   rightIcon?: React.ReactNode;
+  leftIcon?: React.ReactNode;
   readOnly?: boolean;
+  error?: string;
+  helperText?: string;
+  required?: boolean;
 }
 
 export const AppInput: React.FC<AppInputProps> = ({
@@ -18,23 +23,44 @@ export const AppInput: React.FC<AppInputProps> = ({
   placeholder = '',
   keyboardType = 'default',
   rightIcon,
+  leftIcon,
   readOnly = false,
+  error,
+  helperText,
+  required = false,
+  ...props
 }) => {
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={styles.inputWrapper}>
+      {label && (
+        <Text style={[styles.label, error && styles.labelError]}>
+          {label}
+          {required && <Text style={styles.required}> *</Text>}
+        </Text>
+      )}
+      <View style={[styles.inputWrapper, error && styles.inputWrapperError, readOnly && styles.readOnly]}>
+        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
         <TextInput
           keyboardType={keyboardType}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#a8a29e"
+          placeholderTextColor={colors.textMuted}
           editable={!readOnly}
-          style={styles.input}
+          style={[
+            styles.input,
+            leftIcon ? styles.inputWithLeftIcon : undefined,
+            rightIcon ? styles.inputWithRightIcon : undefined,
+          ]}
+          {...props}
         />
         {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
       </View>
+      {(error || helperText) && (
+        <Text style={[styles.helperText, error && styles.errorText]}>
+          {error || helperText}
+        </Text>
+      )}
     </View>
   );
 };
@@ -47,28 +73,62 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#44403c',
+    color: colors.textSecondary,
     marginBottom: 4,
+  },
+  labelError: {
+    color: colors.error,
+  },
+  required: {
+    color: colors.error,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+  },
+  inputWrapperError: {
+    borderColor: colors.error,
+    backgroundColor: colors.errorBg,
+  },
+  readOnly: {
+    backgroundColor: colors.surfaceTertiary,
+    opacity: 0.7,
   },
   input: {
     flex: 1,
-    backgroundColor: '#fafaf9',
-    borderWidth: 1,
-    borderColor: '#d6d3d1',
-    borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
     fontSize: 14,
-    color: '#1c1917',
+    color: colors.textPrimary,
+  },
+  inputWithLeftIcon: {
+    paddingLeft: 36,
+  },
+  inputWithRightIcon: {
+    paddingRight: 36,
+  },
+  leftIcon: {
+    position: 'absolute',
+    left: 12,
+    zIndex: 1,
   },
   rightIcon: {
     position: 'absolute',
     right: 12,
+    zIndex: 1,
+  },
+  helperText: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    marginTop: 2,
+  },
+  errorText: {
+    color: colors.error,
   },
 });
 

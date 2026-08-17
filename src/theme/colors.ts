@@ -1,34 +1,61 @@
 export const colors = {
-  primary: '#6B121C',        // Deep Burgundy / Maroon
+  primary: '#6B121C',
   primaryDark: '#4A0B12',
   primaryLight: '#8C1C2B',
-  gold: '#D4AF37',           // Deity Gold
+  primarySurface: '#FDF2F4',
+  gold: '#D4AF37',
   goldLight: '#FEF3C7',
-  
-  // Status & Transaction Colors
-  earnings: '#15803D',       // Green
+  goldDark: '#B8960F',
+
+  earnings: '#15803D',
+  earningsLight: '#16A34A',
   earningsBg: '#DCFCE7',
-  expense: '#DC2626',        // Red
+  earningsSurface: '#F0FDF4',
+  expense: '#DC2626',
+  expenseLight: '#EF4444',
   expenseBg: '#FEE2E2',
+  expenseSurface: '#FEF2F2',
   profit: '#15803D',
+  profitBg: '#DCFCE7',
 
-  // Tile Card Colors
-  tileDaily: '#16A34A',      // Green
-  tileMachine: '#EA580C',    // Orange Excavator
-  tileCustomer: '#2563EB',   // Blue User
-  tileReport: '#7C3AED',     // Purple Chart
-  tileDatewise: '#0D9488',   // Teal Calendar
-  tileSetting: '#4B5563',    // Slate Settings
+  tileDaily: '#16A34A',
+  tileMachine: '#EA580C',
+  tileCustomer: '#2563EB',
+  tileReport: '#7C3AED',
+  tileDatewise: '#0D9488',
+  tileSetting: '#4B5563',
 
-  // Neutral UI Colors
-  background: '#FAF7F2',     // Light Cream
-  cardBg: '#FFFFFF',
-  textPrimary: '#111827',
-  textSecondary: '#6B7280',
-  textLight: '#9CA3AF',
-  border: '#E5E7EB',
-  inputBg: '#FAFAFA',
-  divider: '#E5E7EB',
+  background: '#F8F6F3',
+  surface: '#FFFFFF',
+  surfaceElevated: '#FFFFFF',
+  surfaceSecondary: '#FAFAF9',
+  surfaceTertiary: '#F5F5F4',
+
+  textPrimary: '#1C1917',
+  textSecondary: '#57534E',
+  textTertiary: '#78716C',
+  textMuted: '#A8A29E',
+  textInverse: '#FFFFFF',
+  textLink: '#6B121C',
+
+  border: '#E7E5E4',
+  borderLight: '#F5F5F4',
+  borderFocus: '#6B121C',
+
+  divider: '#F5F5F4',
+
+  overlay: 'rgba(0, 0, 0, 0.55)',
+  shadow: 'rgba(0, 0, 0, 0.08)',
+
   white: '#FFFFFF',
   black: '#000000',
+
+  success: '#059669',
+  successBg: '#ECFDF5',
+  warning: '#D97706',
+  warningBg: '#FFFBEB',
+  error: '#DC2626',
+  errorBg: '#FEF2F2',
+  info: '#2563EB',
+  infoBg: '#EFF6FF',
 };

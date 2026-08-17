@@ -1,8 +1,10 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppHeader } from '../../components/AppHeader';
 import { AppButton } from '../../components/AppButton';
-import { ShieldCheck, HardDrive, Lock, Globe, PhoneCall, Info, LogOut } from 'lucide-react-native';
+import { ShieldCheck, HardDrive, Lock, Globe, PhoneCall, Info, LogOut, ChevronRight, User } from 'lucide-react-native';
+import { AuthService } from '../../utils/api';
+import { colors, radii, shadows } from '../../theme';
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -10,6 +12,34 @@ interface SettingsScreenProps {
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onLogout }) => {
+  const [businessName, setBusinessName] = useState('महालक्ष्मी इन्फ्रा अँड अर्थमूव्हर्स');
+  const [businessSubtitle, setBusinessSubtitle] = useState('|| श्री महालक्ष्मी प्रसन्न ||');
+
+  useEffect(() => {
+    AuthService.getProfile().then(res => {
+      if (res?.user) {
+        setBusinessName(res.user.businessName);
+        setBusinessSubtitle(res.user.businessSubtitle);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await AuthService.logout();
+    } catch {
+      // ignore
+    }
+    onLogout();
+  };
+
+  const initials = businessName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <View style={styles.screen}>
       <AppHeader title="सेटिंग" showBack={true} onBackPress={onBack} />
@@ -18,23 +48,23 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onLogout
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>M</Text>
+            <Text style={styles.avatarText}>{initials}</Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileTitle}>महालक्ष्मी इन्फ्रा अँड अर्थमूव्हर्स</Text>
-            <Text style={styles.profileSubtitle}>|| श्री महालक्ष्मी प्रसन्न ||</Text>
+            <Text style={styles.profileTitle} numberOfLines={1}>{businessName}</Text>
+            <Text style={styles.profileSubtitle}>{businessSubtitle}</Text>
           </View>
         </View>
 
         {/* Security & Backup Group */}
         <View style={styles.group}>
           <Text style={styles.groupTitle}>सुरक्षा व बॅकअप</Text>
-
           <View style={styles.optionsList}>
-            {/* Option 1 */}
             <View style={styles.optionItem}>
               <View style={styles.optionLeft}>
-                <HardDrive size={18} color="#6B121C" />
+                <View style={[styles.optionIcon, { backgroundColor: colors.infoBg }]}>
+                  <HardDrive size={16} color={colors.info} />
+                </View>
                 <Text style={styles.optionLabel}>ऑटो बॅकअप (मोबाईल मध्ये)</Text>
               </View>
               <View style={styles.badge}>
@@ -42,22 +72,27 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onLogout
               </View>
             </View>
 
-            {/* Option 2 */}
             <View style={styles.optionItem}>
               <View style={styles.optionLeft}>
-                <ShieldCheck size={18} color="#6B121C" />
+                <View style={[styles.optionIcon, { backgroundColor: colors.successBg }]}>
+                  <ShieldCheck size={16} color={colors.success} />
+                </View>
                 <Text style={styles.optionLabel}>डेटा सुरक्षितता</Text>
               </View>
               <Text style={styles.optionValue}>100% ऑफलाइन</Text>
             </View>
 
-            {/* Option 3 */}
             <View style={[styles.optionItem, styles.lastOptionItem]}>
               <View style={styles.optionLeft}>
-                <Lock size={18} color="#6B121C" />
+                <View style={[styles.optionIcon, { backgroundColor: colors.primarySurface }]}>
+                  <Lock size={16} color={colors.primary} />
+                </View>
                 <Text style={styles.optionLabel}>PIN बदला</Text>
               </View>
-              <Text style={styles.optionValue}>1234</Text>
+              <View style={styles.optionRight}>
+                <Text style={styles.optionValue}>1234</Text>
+                <ChevronRight size={14} color={colors.textMuted} />
+              </View>
             </View>
           </View>
         </View>
@@ -65,29 +100,32 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onLogout
         {/* App Info Group */}
         <View style={styles.group}>
           <Text style={styles.groupTitle}>अॅप माहिती</Text>
-
           <View style={styles.optionsList}>
-            {/* Option 1 */}
             <View style={styles.optionItem}>
               <View style={styles.optionLeft}>
-                <Globe size={18} color="#57534e" />
+                <View style={[styles.optionIcon, { backgroundColor: colors.surfaceTertiary }]}>
+                  <Globe size={16} color={colors.textSecondary} />
+                </View>
                 <Text style={styles.optionLabel}>भाषा (Language)</Text>
               </View>
               <Text style={styles.optionValueDark}>मराठी</Text>
             </View>
 
-            {/* Option 2 */}
             <View style={styles.optionItem}>
               <View style={styles.optionLeft}>
-                <PhoneCall size={18} color="#57534e" />
+                <View style={[styles.optionIcon, { backgroundColor: colors.surfaceTertiary }]}>
+                  <PhoneCall size={16} color={colors.textSecondary} />
+                </View>
                 <Text style={styles.optionLabel}>मदत व सपोर्ट</Text>
               </View>
+              <ChevronRight size={14} color={colors.textMuted} />
             </View>
 
-            {/* Option 3 */}
             <View style={[styles.optionItem, styles.lastOptionItem]}>
               <View style={styles.optionLeft}>
-                <Info size={18} color="#57534e" />
+                <View style={[styles.optionIcon, { backgroundColor: colors.surfaceTertiary }]}>
+                  <Info size={16} color={colors.textSecondary} />
+                </View>
                 <Text style={styles.optionLabel}>अॅप व्हर्जन</Text>
               </View>
               <Text style={styles.optionValue}>v1.0.0</Text>
@@ -95,12 +133,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onLogout
           </View>
         </View>
 
-        {/* Lock / Logout Button */}
+        {/* Logout */}
         <View style={styles.logoutWrapper}>
           <AppButton
-            title="अॅप लॉक करा (लॉगआउट)"
+            title="लॉगआउट करा"
             icon={<LogOut size={16} color="white" />}
-            onPress={onLogout}
+            onPress={handleLogout}
             variant="danger"
           />
         </View>
@@ -112,7 +150,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onLogout
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#FAF7F2',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -120,28 +158,29 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 32,
-    gap: 16,
+    gap: 20,
   },
   profileCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.white,
+    borderRadius: radii.xl,
+    padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
     borderWidth: 1,
-    borderColor: '#e7e5e4',
+    borderColor: colors.border,
+    ...shadows.sm,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#6B121C',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: '#fde047',
+    color: colors.gold,
     fontSize: 20,
     fontWeight: '800',
   },
@@ -151,29 +190,32 @@ const styles = StyleSheet.create({
   profileTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1c1917',
+    color: colors.textPrimary,
   },
   profileSubtitle: {
     fontSize: 12,
-    color: '#78716c',
+    color: colors.textTertiary,
     marginTop: 2,
     fontWeight: '500',
   },
   group: {
-    gap: 6,
+    gap: 8,
   },
   groupTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#57534e',
+    color: colors.textMuted,
     paddingHorizontal: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   optionsList: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: colors.white,
+    borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: '#e7e5e4',
+    borderColor: colors.border,
     overflow: 'hidden',
+    ...shadows.xs,
   },
   optionItem: {
     flexDirection: 'row',
@@ -182,7 +224,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f4',
+    borderBottomColor: colors.borderLight,
   },
   lastOptionItem: {
     borderBottomWidth: 0,
@@ -191,33 +233,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
+  },
+  optionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   optionLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#292524',
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  optionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   badge: {
-    backgroundColor: '#ecfdf5',
+    backgroundColor: colors.successBg,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 12,
+    borderColor: '#A7F3D0',
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderRadius: radii.full,
   },
   badgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#047857',
+    color: colors.success,
   },
   optionValue: {
     fontSize: 13,
-    color: '#78716c',
+    color: colors.textTertiary,
   },
   optionValueDark: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#44403c',
+    color: colors.textSecondary,
   },
   logoutWrapper: {
     marginTop: 8,
