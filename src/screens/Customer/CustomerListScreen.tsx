@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Alert, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Alert, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { AppHeader } from '../../components/AppHeader';
 import { AppSearch } from '../../components/AppSearch';
 import { CustomerCard } from '../../components/CustomerCard';
@@ -19,9 +19,18 @@ interface CustomerListScreenProps {
 }
 
 export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack, onSelectCustomer }) => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>(
+    // ── Instant cache: show last-known list immediately, zero delay ──
+    Array.isArray(DummyData.customers) && DummyData.customers.length > 0
+      ? (DummyData.customers as Customer[])
+      : []
+  );
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  // `loading` is true only on the very first open when cache is empty
+  const [loading, setLoading] = useState<boolean>(
+    !Array.isArray(DummyData.customers) || DummyData.customers.length === 0
+  );
+  const [refreshing, setRefreshing] = useState<boolean>(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -30,23 +39,36 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack, 
   const [location, setLocation] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
 
-  const fetchCustomers = async (search?: string) => {
+  const handlePhoneChange = (text: string) => {
+    // Allow only digits, max 10
+    const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
+    setPhone(digits);
+  };
+
+  /**
+   * fetchCustomers
+   *   silent=true  → background refresh (no spinner, list stays visible)
+   *   silent=false → manual pull-to-refresh (shows RefreshControl spinner)
+   */
+  const fetchCustomers = async (search?: string, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setRefreshing(true);
       const data = await CustomerService.getAll(search);
       if (Array.isArray(data)) {
         setCustomers(data);
         DummyData.customers = data;
       }
     } catch {
-      // Fallback gracefully to local state
+      // Fallback gracefully to cached state already shown
     } finally {
       setLoading(false);
+      if (!silent) setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchCustomers();
+    // On mount: silent background refresh so cached data shows instantly
+    fetchCustomers(undefined, true);
   }, []);
 
   const avatarColors = ['bg-blue-600', 'bg-orange-600', 'bg-teal-600', 'bg-emerald-600', 'bg-purple-600'];
@@ -111,6 +133,10 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack, 
       Alert.alert('त्रुटी', 'कृपया ग्राहकाचे नाव टाका');
       return;
     }
+    if (phone && phone.length !== 10) {
+      Alert.alert('त्रुटी', 'मोबाईल नंबर बरोबर नाही. कृपया 10 अंकी नंबर टाका.');
+      return;
+    }
 
     if (editingCustomer) {
       const updated = customers.map((c) =>
@@ -146,14 +172,14 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack, 
     setIsModalOpen(false);
   };
 
-  // Render Customer Detail View if a customer is clicked
+  // After returning from detail view, silently refresh
   if (selectedCustomer) {
     return (
       <CustomerDetailScreen
         customer={selectedCustomer}
         onBack={() => {
           setSelectedCustomer(null);
-          fetchCustomers();
+          fetchCustomers(undefined, true);
         }}
       />
     );
@@ -174,6 +200,14 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack, 
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => fetchCustomers(undefined, false)}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         >
           <AppSearch
             value={searchQuery}
@@ -243,11 +277,12 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack, 
             placeholder="उदा. गोकुळ शिरगाव"
           />
           <AppInput
-            label="मोबाईल नंबर"
+            label={`मोबाईल नंबर${phone.length > 0 ? ` (${phone.length}/10)` : ''}`}
             value={phone}
-            onChangeText={setPhone}
+            onChangeText={handlePhoneChange}
             placeholder="उदा. 9765432101"
             keyboardType="phone-pad"
+            maxLength={10}
           />
           <View style={styles.modalBtn}>
             <AppButton

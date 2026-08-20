@@ -1165,9 +1165,9 @@ export const MonthlyReportScreen: React.FC<MonthlyReportScreenProps> = ({ onBack
             </View>
 
             {/* Machine Summary Highlight Card */}
-            <View style={[styles.earningsHeroBanner, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-              <View style={tw`flex flex-row justify-between items-center`}>
-                <View>
+            <View style={[styles.earningsHeroBanner, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', alignItems: 'stretch' }]}>
+              <View style={tw`flex flex-row justify-between items-center w-full`}>
+                <View style={tw`flex-1 pr-3`}>
                   <Text style={[styles.earningsHeroLabel, { color: '#1D4ED8' }]}>
                     मशीन एकूण मासिक कमाई
                   </Text>

@@ -70,6 +70,12 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
   const [newCustLocation, setNewCustLocation] = useState<string>('');
   const [newCustPhone, setNewCustPhone] = useState<string>('');
 
+  const handleNewCustPhoneChange = (text: string) => {
+    // Allow only digits, max 10
+    const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
+    setNewCustPhone(digits);
+  };
+
   // Machine Summary & Detail Report State
   const [machineSummaries, setMachineSummaries] = useState<MachineSummaryItem[]>([]);
   const [summaryLoading, setSummaryLoading] = useState<boolean>(false);
@@ -314,6 +320,10 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
   const handleAddCustomer = async () => {
     if (!newCustName.trim()) {
       Alert.alert('त्रुटी', 'कृपया ग्राहकाचे नाव टाका');
+      return;
+    }
+    if (newCustPhone && newCustPhone.length !== 10) {
+      Alert.alert('त्रुटी', 'मोबाईल नंबर बरोबर नाही. कृपया 10 अंकी नंबर टाका.');
       return;
     }
 
@@ -749,11 +759,12 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
             placeholder="उदा. इचलकरंजी"
           />
           <AppInput
-            label="फोन नंबर"
+            label={`फोन नंबर${newCustPhone.length > 0 ? ` (${newCustPhone.length}/10)` : ''}`}
             value={newCustPhone}
-            onChangeText={setNewCustPhone}
+            onChangeText={handleNewCustPhoneChange}
             placeholder="उदा. 9876543210"
             keyboardType="phone-pad"
+            maxLength={10}
           />
           <View style={styles.modalBtn}>
             <AppButton title="सेव्ह करा" onPress={handleAddCustomer} variant="primary" />

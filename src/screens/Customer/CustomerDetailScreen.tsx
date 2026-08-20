@@ -12,6 +12,7 @@ import {
 import { AppHeader } from '../../components/AppHeader';
 import { AppModal } from '../../components/AppModal';
 import { AppInput } from '../../components/AppInput';
+import { AppDatePicker } from '../../components/AppDatePicker';
 import { AppButton } from '../../components/AppButton';
 import { Customer, CustomerLedgerData, CustomerPaymentItem, CustomerWorkHistoryItem } from '../../types/customer';
 import { CustomerService } from '../../utils/api';
@@ -55,6 +56,20 @@ export const CustomerDetailScreen: React.FC<CustomerDetailScreenProps> = ({ cust
   const [expectedDateInput, setExpectedDateInput] = useState<string>('');
   const [submittingExpectedDate, setSubmittingExpectedDate] = useState<boolean>(false);
 
+
+  // ── Date format helpers ──────────────────────────────────────────────────
+  // API / state uses YYYY-MM-DD; AppDatePicker uses DD/MM/YYYY
+  const isoToDisplay = (iso: string): string => {
+    if (!iso || !iso.includes('-')) return '';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  };
+  const displayToIso = (display: string): string => {
+    if (!display || !display.includes('/')) return '';
+    const [d, m, y] = display.split('/');
+    return `${y}-${m}-${d}`;
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   const fetchLedger = useCallback(async () => {
     try {
@@ -439,11 +454,10 @@ export const CustomerDetailScreen: React.FC<CustomerDetailScreenProps> = ({ cust
         title="रक्कम जमा करा"
       >
         <View style={styles.modalContent}>
-          <AppInput
-            label="जमा तारीख (YYYY-MM-DD)"
-            value={paymentDate}
-            onChangeText={setPaymentDate}
-            placeholder="YYYY-MM-DD"
+          <AppDatePicker
+            label="जमा तारीख (Payment Date)"
+            value={isoToDisplay(paymentDate)}
+            onChange={(display) => setPaymentDate(displayToIso(display))}
           />
 
           <AppInput
@@ -513,12 +527,10 @@ export const CustomerDetailScreen: React.FC<CustomerDetailScreenProps> = ({ cust
         title="देय तारीख नक्की करा"
       >
         <View style={styles.modalContent}>
-          <AppInput
-            label="पेमेंट देण्याची आपक्षित तारीख (YYYY-MM-DD)"
-            value={expectedDateInput}
-            onChangeText={setExpectedDateInput}
-            placeholder="YYYY-MM-DD"
-            required
+          <AppDatePicker
+            label="पेमेंट देण्याची आपक्षित तारीख (Expected Date)"
+            value={isoToDisplay(expectedDateInput)}
+            onChange={(display) => setExpectedDateInput(displayToIso(display))}
           />
 
           <View style={styles.modalBtnRow}>
