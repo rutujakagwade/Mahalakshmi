@@ -45,6 +45,22 @@ declare module 'lucide-react-native' {
   export const Wrench: React.ComponentType<any>;
   export const Wifi: React.ComponentType<any>;
   export const ChevronRight: React.ComponentType<any>;
+  export const ChevronLeft: React.ComponentType<any>;
+  export const Wallet: React.ComponentType<any>;
+  export const Layers: React.ComponentType<any>;
+  export const Fuel: React.ComponentType<any>;
+  export const Layers2: React.ComponentType<any>;
+  export const PlusCircle: React.ComponentType<any>;
+  export const Briefcase: React.ComponentType<any>;
+  export const CreditCard: React.ComponentType<any>;
+  export const Clock: React.ComponentType<any>;
+  export const DollarSign: React.ComponentType<any>;
+  export const CheckCircle2: React.ComponentType<any>;
+  export const AlertCircle: React.ComponentType<any>;
+  export const CheckCheck: React.ComponentType<any>;
+  export const Send: React.ComponentType<any>;
+  export const Inbox: React.ComponentType<any>;
+
   // fallback for other icons
   const icons: { [key: string]: React.ComponentType<any> };
   export default icons;

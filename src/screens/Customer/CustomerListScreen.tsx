@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Alert, ScrollView, StyleSheet } from 'react-native';
 import { AppHeader } from '../../components/AppHeader';
 import { AppSearch } from '../../components/AppSearch';
@@ -9,17 +9,20 @@ import { AppButton } from '../../components/AppButton';
 import { Customer } from '../../types/customer';
 import { DummyData } from '../../constants/DummyData';
 import { CustomerService } from '../../utils/api';
-import { colors, radii } from '../../theme';
+import { colors } from '../../theme';
 import { Users } from 'lucide-react-native';
+import { CustomerDetailScreen } from './CustomerDetailScreen';
 
 interface CustomerListScreenProps {
   onBack: () => void;
+  onSelectCustomer?: (customer: Customer) => void;
 }
 
-export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }) => {
-  const [customers, setCustomers] = useState<Customer[]>(DummyData.customers as Customer[]);
+export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack, onSelectCustomer }) => {
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -42,7 +45,7 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchCustomers();
   }, []);
 
@@ -54,6 +57,14 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }
       c.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.phone.includes(searchQuery)
   );
+
+  const handleSelectCustomer = (customer: Customer) => {
+    if (onSelectCustomer) {
+      onSelectCustomer(customer);
+    } else {
+      setSelectedCustomer(customer);
+    }
+  };
 
   const handleOpenAdd = () => {
     setEditingCustomer(null);
@@ -135,6 +146,19 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }
     setIsModalOpen(false);
   };
 
+  // Render Customer Detail View if a customer is clicked
+  if (selectedCustomer) {
+    return (
+      <CustomerDetailScreen
+        customer={selectedCustomer}
+        onBack={() => {
+          setSelectedCustomer(null);
+          fetchCustomers();
+        }}
+      />
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.content}>
@@ -171,6 +195,7 @@ export const CustomerListScreen: React.FC<CustomerListScreenProps> = ({ onBack }
                 <CustomerCard
                   key={customer.id}
                   customer={customer}
+                  onSelect={handleSelectCustomer}
                   onEdit={handleOpenEdit}
                   onDelete={handleDelete}
                   avatarBgColor={avatarColors[index % avatarColors.length]}

@@ -1,5 +1,5 @@
 export const Strings = {
-  appName: 'महालक्ष्मी इन्फ्रा अँड अर्थमूव्हर्स',
+  appName: 'महालक्ष्मी इन्फ्रा',
   appSubtitle: '|| श्री महालक्ष्मी प्रसन्न ||',
   pinPrompt: '4 अंकी PIN टाका',
   securityBadge: 'सुरक्षित आणि ऑफलाइन',
@@ -11,7 +11,7 @@ export const Strings = {
   customerTile: 'ग्राहक',
   reportTile: 'रिपोर्ट',
   datewiseReportTile: 'तारीखनुसार हिशोब',
-  settingsTile: 'सेटिंग',
+  settingsTile: 'ॲप सेटिंग्ज',
 
   // Summaries
   todayEarnings: 'आजची कमाई',

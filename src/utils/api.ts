@@ -5,12 +5,48 @@
 
 // Configure base URL: change to your machine's LAN IP when testing on real Android/iOS device
 // e.g. 'http://192.168.1.100:8000/api' or 'http://10.0.2.2:8000/api' for Android emulator
-export const API_BASE_URL = 'http://10.0.2.2:8000/api';
+// export const API_BASE_URL = 'http://35.154.122.181/mahalaxmiEMbackend-/public/api';
+export const API_BASE_URL = 'http://10.147.238.128:8000/api';
+
+
+
+
+import { SafeStorage } from './storage';
+
+const AUTH_TOKEN_KEY = '@mahalaxmi_auth_token';
 
 let authToken: string | null = null;
 
-export const setAuthToken = (token: string | null) => {
+/**
+ * Persist token to SafeStorage AND update in-memory cache.
+ * Pass null to clear (logout).
+ */
+export const setAuthToken = async (token: string | null): Promise<void> => {
   authToken = token;
+  try {
+    if (token) {
+      await SafeStorage.setItem(AUTH_TOKEN_KEY, token);
+    } else {
+      await SafeStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+  } catch {
+    // In-memory token is always preserved
+  }
+};
+
+/**
+ * Restore token on app startup.
+ */
+export const initAuthToken = async (): Promise<string | null> => {
+  try {
+    const stored = await SafeStorage.getItem(AUTH_TOKEN_KEY);
+    if (stored) {
+      authToken = stored;
+    }
+    return authToken;
+  } catch {
+    return null;
+  }
 };
 
 export const getAuthToken = () => authToken;
@@ -78,7 +114,7 @@ export const AuthService = {
       body: JSON.stringify({ pin }),
     });
     if (response.token) {
-      setAuthToken(response.token);
+      await setAuthToken(response.token);
     }
     return response;
   },
@@ -87,7 +123,7 @@ export const AuthService = {
     try {
       await apiRequest('/auth/logout', { method: 'POST' });
     } finally {
-      setAuthToken(null);
+      await setAuthToken(null);
     }
   },
 
@@ -139,7 +175,34 @@ export const CustomerService = {
   delete: async (id: string) => {
     return apiRequest(`/customers/${id}`, { method: 'DELETE' });
   },
+
+  getLedger: async (id: string) => {
+    const res = await apiRequest(`/customers/${id}/ledger`);
+    return res.data;
+  },
+
+  addPayment: async (id: string, payload: { payment_date: string; amount: number; payment_type: 'cash' | 'online'; notes?: string }) => {
+    const res = await apiRequest(`/customers/${id}/payments`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res.data;
+  },
+
+  deletePayment: async (paymentId: string) => {
+    return apiRequest(`/customer-payments/${paymentId}`, { method: 'DELETE' });
+  },
+
+  updateExpectedPaymentDate: async (id: string, expected_payment_date: string | null) => {
+    const res = await apiRequest(`/customers/${id}/expected-payment-date`, {
+      method: 'PUT',
+      body: JSON.stringify({ expected_payment_date }),
+    });
+    return res.data;
+  },
 };
+
+
 
 export const MachineService = {
   getAll: async () => {
@@ -203,15 +266,34 @@ export const DailyLedgerService = {
 };
 
 export const MachineEntryService = {
-  getAll: async (filters?: { date?: string; machine_id?: string; customer_id?: string }) => {
+  /**
+   * Get machine entries with flexible date filtering:
+   *   - { date }              → single-day (backward compat)
+   *   - { from_date, to_date } → date range (multi-day)
+   *   - { machine_id }        → filter by machine
+   *   - { customer_id }       → filter by customer
+   */
+  getAll: async (filters?: {
+    date?: string;
+    from_date?: string;
+    to_date?: string;
+    machine_id?: string;
+    customer_id?: string;
+  }) => {
     const res = await apiRequest('/machine-entries', { params: filters });
     return res.data;
   },
 
+  /**
+   * Create a machine entry.
+   * Pass to_date for multi-day / date-range work (पर्यंत तारीख).
+   * If omitted, entry is treated as a single-day record.
+   */
   create: async (payload: {
     machine_id: string | number;
     customer_id?: string | number | null;
-    entry_date: string;
+    entry_date: string;          // पासून तारीख (from date)
+    to_date?: string | null;     // पर्यंत तारीख (to date) — null for single day
     location?: string;
     work_description?: string;
     hours_or_trips?: number;
@@ -224,6 +306,29 @@ export const MachineEntryService = {
       body: JSON.stringify(payload),
     });
     return res.data;
+  },
+
+  update: async (id: string | number, payload: {
+    machine_id?: string | number;
+    customer_id?: string | number | null;
+    entry_date?: string;
+    to_date?: string | null;
+    location?: string;
+    work_description?: string;
+    hours_or_trips?: number;
+    hours_unit?: 'hours' | 'trips';
+    amount?: number;
+    payment_type?: 'cash' | 'online' | 'credit';
+  }) => {
+    const res = await apiRequest(`/machine-entries/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    return res.data;
+  },
+
+  delete: async (id: string | number) => {
+    return apiRequest(`/machine-entries/${id}`, { method: 'DELETE' });
   },
 
   getSummary: async (date?: string) => {
@@ -248,4 +353,37 @@ export const ReportService = {
     });
     return res.data;
   },
+
+  getUdharReport: async () => {
+    const res = await apiRequest('/reports/udhar');
+    return res.data;
+  },
 };
+
+export const NotificationService = {
+  saveFcmToken: async (fcm_token: string) => {
+    return apiRequest('/user/fcm-token', {
+      method: 'POST',
+      body: JSON.stringify({ fcm_token }),
+    });
+  },
+
+  getAll: async () => {
+    const res = await apiRequest('/notifications');
+    return res.data;
+  },
+
+  markAllRead: async () => {
+    return apiRequest('/notifications/read-all', {
+      method: 'POST',
+    });
+  },
+
+  sendTestNotification: async () => {
+    return apiRequest('/notifications/send-test', {
+      method: 'POST',
+    });
+  },
+};
+
+

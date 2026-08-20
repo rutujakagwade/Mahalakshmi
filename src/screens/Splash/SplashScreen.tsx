@@ -1,146 +1,57 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, ImageBackground } from 'react-native';
-import { AppButton } from '../../components/AppButton';
-import { ArrowRight } from 'lucide-react-native';
-import { colors, radii, shadows } from '../../theme';
+import React, { useEffect } from 'react';
+import { View, Image, StyleSheet, StatusBar, TouchableOpacity, Dimensions } from 'react-native';
 
-const excavatorImg = require('../../assets/images/splash/excavator.png');
-const splashBgImg = require('../../assets/images/splash/splash-bg.png');
+const flashScreenImg = require('../../assets/images/splash/flashscreen.png');
+const { width, height } = Dimensions.get('window');
 
 interface SplashScreenProps {
   onNavigateNext: () => void;
 }
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onNavigateNext }) => {
+  useEffect(() => {
+    // Automatically redirect to PIN screen after 3 seconds
+    const timer = setTimeout(() => {
+      onNavigateNext();
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [onNavigateNext]);
+
   return (
-    <ImageBackground source={splashBgImg} style={styles.backgroundImage} resizeMode="cover">
-      <View style={styles.container}>
-        {/* Branding */}
-        <View style={styles.branding}>
-          <View style={styles.logoWrapper}>
-            <Image
-              source={require('../../assets/images/logo/logo.png')}
-              accessibilityLabel="Goddess Mahalaxmi"
-              style={styles.logoImage}
-            />
-          </View>
-
-          <Text style={styles.title}>महालक्ष्मी</Text>
-          <Text style={styles.subtitle}>इन्फ्रा अँड अर्थमूव्हर्स</Text>
-
-          <View style={styles.divider} />
-
-          <Text style={styles.blessing}>|| श्री महालक्ष्मी प्रसन्न ||</Text>
-        </View>
-
-        {/* Excavator Image */}
-        <View style={styles.imageContainer}>
-          <Image
-            source={excavatorImg}
-            style={styles.excavatorImage}
-            resizeMode="contain"
-          />
-        </View>
-
-        {/* Bottom Action */}
-        <View style={styles.bottomArea}>
-          <AppButton
-            title="शुरू करा"
-            onPress={onNavigateNext}
-            icon={<ArrowRight size={18} color="white" />}
-            variant="primary"
-            size="lg"
-          />
-          <Text style={styles.footerText}>
-            सुरक्षित आणि 100% ऑफलाइन व्यवस्थापन
-          </Text>
-        </View>
-      </View>
-    </ImageBackground>
+    <TouchableOpacity
+      activeOpacity={1}
+      onPress={onNavigateNext}
+      style={styles.container}
+    >
+      <StatusBar hidden={false} barStyle="light-content" translucent backgroundColor="transparent" />
+      <Image
+        source={flashScreenImg}
+        style={styles.image}
+        resizeMode="cover"
+        fadeDuration={0}
+      />
+    </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-  },
   container: {
     flex: 1,
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    paddingBottom: 24,
-  },
-  branding: {
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginTop: 16,
-  },
-  logoWrapper: {
-    marginBottom: 16,
-    backgroundColor: 'transparent',
-  },
-  logoImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'transparent',
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: colors.primary,
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primaryDark,
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  divider: {
-    width: 40,
-    height: 3,
-    backgroundColor: colors.gold,
-    borderRadius: 2,
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  blessing: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.goldDark,
-    textAlign: 'center',
-  },
-  imageContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    marginVertical: 12,
-    backgroundColor: 'transparent',
-  },
-  excavatorImage: {
     width: '100%',
     height: '100%',
-    maxHeight: 220,
-    backgroundColor: 'transparent',
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  bottomArea: {
-    paddingHorizontal: 24,
-    width: '100%',
-    maxWidth: 360,
-    alignSelf: 'center',
-    gap: 12,
-  },
-  footerText: {
-    textAlign: 'center',
-    fontSize: 11,
-    color: colors.goldDark,
-    fontWeight: '600',
-    opacity: 0.8,
+  image: {
+    width: width,
+    height: height,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 });
 

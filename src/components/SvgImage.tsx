@@ -16,10 +16,13 @@ export const SvgImage: React.FC<SvgImageProps> = ({ source, style, ...props }) =
     } else if (source.includes(';base64,')) {
       const base64 = source.split(';base64,')[1];
       try {
-        // Fallback decoder
-        xml = Buffer.from(base64, 'base64').toString('utf8');
+        const g = globalThis as any;
+        if (typeof g.Buffer !== 'undefined') {
+          xml = g.Buffer.from(base64, 'base64').toString('utf8');
+        } else if (typeof atob !== 'undefined') {
+          xml = decodeURIComponent(escape(atob(base64)));
+        }
       } catch (e) {
-        // Browser/Hermes environment fallback
         if (typeof atob !== 'undefined') {
           xml = atob(base64);
         }

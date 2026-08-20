@@ -12,3 +12,4 @@ export * from './CustomerCard';
 export * from './MachineCard';
 export * from './ReportCard';
 export * from './AppEmpty';
+export * from './PieChart';

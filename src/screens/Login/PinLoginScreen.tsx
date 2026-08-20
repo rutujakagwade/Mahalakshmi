@@ -22,12 +22,8 @@ export const PinLoginScreen: React.FC<PinLoginScreenProps> = ({ onSuccess }) => 
       await AuthService.login(enteredPin);
       onSuccess();
     } catch (err: any) {
-      if (enteredPin === '1234' || enteredPin.length === 4) {
-        onSuccess();
-      } else {
-        setErrorMsg(err.message || 'चुकीचा PIN! कृपया पुन्हा प्रयत्न करा.');
-        setPin('');
-      }
+      setErrorMsg(err.message || 'चुकीचा PIN! कृपया पुन्हा प्रयत्न करा.');
+      setPin('');
     } finally {
       setLoading(false);
     }
@@ -78,11 +74,8 @@ export const PinLoginScreen: React.FC<PinLoginScreenProps> = ({ onSuccess }) => 
         <Text style={tw`font-bold text-xl text-[${colors.textPrimary}] mb-1`}>
           PIN प्रवेश
         </Text>
-        <Text style={tw`text-sm text-[${colors.textSecondary}] mb-1`}>
+        <Text style={tw`text-sm text-[${colors.textSecondary}] mb-6`}>
           4 अंकी PIN टाका
-        </Text>
-        <Text style={tw`text-xs text-[${colors.textTertiary}] mb-4`}>
-          (डेमो PIN: <Text style={tw`font-bold text-[${colors.primary}]`}>1234</Text> किंवा कोणताही 4 अंक)
         </Text>
 
         {loading && (

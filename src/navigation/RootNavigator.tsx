@@ -1,6 +1,6 @@
 import tw from 'twrnc';
-import { View } from 'react-native';
-import React, { useState } from 'react';
+import { View, BackHandler } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ActiveScreen } from '../types/navigation';
 import { SplashScreen } from '../screens/Splash/SplashScreen';
 import { PinLoginScreen } from '../screens/Login/PinLoginScreen';
@@ -9,9 +9,15 @@ import { DailyEntryScreen } from '../screens/DailyEntry/DailyEntryScreen';
 import { MachineEntryScreen } from '../screens/MachineEntry/MachineEntryScreen';
 import { CustomerListScreen } from '../screens/Customer/CustomerListScreen';
 import { DateReportScreen } from '../screens/Reports/DateReportScreen';
+import { CalendarViewScreen } from '../screens/Calendar/CalendarViewScreen';
 import { MonthlyReportScreen } from '../screens/Reports/MonthlyReportScreen';
+import { UdharReportScreen } from '../screens/Reports/UdharReportScreen';
+import { NotificationScreen } from '../screens/Notification/NotificationScreen';
 import { SettingsScreen } from '../screens/Settings/SettingsScreen';
+
 import { DrawerNavigator } from './DrawerNavigator';
+import { initAuthToken } from '../utils/api';
+import { setupFirebaseMessaging } from '../utils/firebase';
 
 interface RootNavigatorProps {
   initialScreen?: ActiveScreen;
@@ -19,51 +25,68 @@ interface RootNavigatorProps {
 
 export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'Splash' }) => {
   const [currentScreen, setCurrentScreen] = useState<ActiveScreen>(initialScreen);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
 
-  const navigateTo = (screen: ActiveScreen) => {
+  const navigateTo = useCallback((screen: ActiveScreen) => {
     setCurrentScreen(screen);
-  };
+  }, []);
 
-  const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
+  useEffect(() => {
+    if (currentScreen !== 'Splash' && currentScreen !== 'PinLogin') {
+      setupFirebaseMessaging();
+    }
+  }, [currentScreen]);
+
+  const handleLoginSuccess = useCallback(() => {
     setCurrentScreen('Dashboard');
-  };
+  }, []);
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
+  const handleLogout = useCallback(() => {
     setCurrentScreen('PinLogin');
-  };
+  }, []);
+
+  // When splash finishes, check for saved auth token to auto-login
+  const handleSplashDone = useCallback(async () => {
+    try {
+      const savedToken = await initAuthToken();
+      if (savedToken) {
+        setCurrentScreen('Dashboard');
+        setupFirebaseMessaging();
+      } else {
+        setCurrentScreen('PinLogin');
+      }
+    } catch {
+      setCurrentScreen('PinLogin');
+    }
+  }, []);
 
   // Handle hardware back press on Android
-  React.useEffect(() => {
+  useEffect(() => {
     const handleBackPress = () => {
-      // If we are on any subscreen, go back to Dashboard instead of closing the app
       if (
         currentScreen !== 'Dashboard' &&
         currentScreen !== 'PinLogin' &&
         currentScreen !== 'Splash'
       ) {
         navigateTo('Dashboard');
-        return true; // prevent default exit
+        return true;
       }
-      return false; // let system exit on Splash/Login/Dashboard
+      return false;
     };
 
-    const backHandler = require('react-native').BackHandler.addEventListener(
+    const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       handleBackPress
     );
 
     return () => backHandler.remove();
-  }, [currentScreen]);
+  }, [currentScreen, navigateTo]);
 
   return (
     <View style={tw`relative flex-1 bg-stone-900 font-sans antialiased`}>
       {/* Active Screen Rendering */}
       {currentScreen === 'Splash' && (
-        <SplashScreen onNavigateNext={() => setCurrentScreen('PinLogin')} />
+        <SplashScreen onNavigateNext={handleSplashDone} />
       )}
 
       {currentScreen === 'PinLogin' && (
@@ -93,9 +116,27 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'S
         <DateReportScreen onBack={() => navigateTo('Dashboard')} />
       )}
 
+      {currentScreen === 'CalendarView' && (
+        <CalendarViewScreen
+          onBack={() => navigateTo('Dashboard')}
+          onNavigateToEntry={() => navigateTo('MachineEntry')}
+        />
+      )}
+
+
       {(currentScreen === 'MonthlyReport' || currentScreen === 'MachineReport') && (
         <MonthlyReportScreen onBack={() => navigateTo('Dashboard')} />
       )}
+
+      {currentScreen === 'UdharReport' && (
+        <UdharReportScreen onBack={() => navigateTo('Dashboard')} />
+      )}
+
+      {currentScreen === 'NotificationList' && (
+        <NotificationScreen onBack={() => navigateTo('Dashboard')} />
+      )}
+
+
 
       {currentScreen === 'Settings' && (
         <SettingsScreen
