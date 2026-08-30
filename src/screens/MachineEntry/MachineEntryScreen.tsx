@@ -86,8 +86,15 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
   const [saving, setSaving] = useState<boolean>(false);
 
   const getIsoDate = (dStr: string) => {
+    if (!dStr) return new Date().toISOString().split('T')[0];
     const parts = dStr.split('/');
-    return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : new Date().toISOString().split('T')[0];
+    if (parts.length === 3) {
+      const d = parts[0].padStart(2, '0');
+      const m = parts[1].padStart(2, '0');
+      const y = parts[2];
+      return `${y}-${m}-${d}`;
+    }
+    return dStr;
   };
 
   const loadMachineSummaries = async (currentFromDateStr: string, currentMachines: any[], currentToDateStr?: string) => {
@@ -216,8 +223,28 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
     }
   }, [fromDate, toDate]);
 
+  const parseDateToObj = (dStr: string) => {
+    const parts = dStr.split('/');
+    if (parts.length === 3) {
+      return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+    }
+    return new Date();
+  };
+
+  const startObj = parseDateToObj(fromDate);
+  const endObj = parseDateToObj(toDate);
+  const diffTime = endObj.getTime() - startObj.getTime();
+  const selectedDaysCount = diffTime >= 0 ? Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1 : 1;
+  const numericAmountVal = parseFloat(amount.replace(/,/g, '')) || 0;
+  const numHoursVal = parseFloat(hoursOrTrips.replace(/[^0-9.]/g, '')) || 0;
+
   const handleSave = async () => {
     const numericAmt = parseFloat(amount.replace(/,/g, '')) || 0;
+    if (numericAmt <= 0) {
+      Alert.alert('त्रुटी', 'कृपया योग्य रक्कम टाका.');
+      return;
+    }
+
     const isoFromDate = getIsoDate(fromDate);
     const isoToDate = getIsoDate(toDate);
 
@@ -237,11 +264,7 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
     const numHours = parseFloat(hoursOrTrips.replace(/[^0-9.]/g, '')) || 0;
     const unit = hoursOrTrips.includes('फेऱ्या') ? 'trips' : 'hours';
 
-    let finalDescription = description;
-    if (fromDate !== toDate) {
-      const dateRangeNote = `${fromDate} ते ${toDate}`;
-      finalDescription = description ? `${description} (${dateRangeNote})` : `काम (${dateRangeNote})`;
-    }
+    const baseDescription = description.trim();
 
     setSaving(true);
     try {
@@ -250,10 +273,10 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
           machine_id: matchedMachine.id,
           customer_id: matchedCustomer?.id || null,
           entry_date: isoFromDate,
-          to_date: isoFromDate !== isoToDate ? isoToDate : null, // null = single day
+          to_date: isoFromDate !== isoToDate ? isoToDate : null, // Backend splits across all days
           location,
-          work_description: finalDescription,
-          hours_or_trips: numHours,
+          work_description: baseDescription || undefined,
+          hours_or_trips: numHours || undefined,
           hours_unit: unit,
           amount: numericAmt,
           payment_type: payTypeMap[paymentType] || 'cash',
@@ -265,8 +288,15 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
       setDescription('');
       setHoursOrTrips('');
       setAmount('');
-      setSavedMsg('मशीन नोंद यशस्वीरित्या सेव्ह झाली!');
-      setTimeout(() => setSavedMsg(''), 3000);
+
+      if (selectedDaysCount > 1) {
+        const perDayStr = formatCurrency(Math.round(numericAmt / selectedDaysCount));
+        setSavedMsg(`मशीन नोंद ${selectedDaysCount} दिवसांमध्ये यशस्वीरित्या विभागून सेव्ह झाली (${perDayStr}/दिवस)!`);
+      } else {
+        setSavedMsg('मशीन नोंद यशस्वीरित्या सेव्ह झाली!');
+      }
+
+      setTimeout(() => setSavedMsg(''), 4000);
 
       // Reload machine summaries
       await loadMachineSummaries(fromDate, machinesList, toDate);
@@ -467,9 +497,52 @@ export const MachineEntryScreen: React.FC<MachineEntryScreenProps> = ({ onBack }
             ]}
           />
 
+          {/* Multi-Day Split Indicator Banner */}
+          {selectedDaysCount > 1 && (
+            <View style={styles.splitInfoBanner}>
+              <View style={tw`flex flex-row items-center gap-2 mb-2`}>
+                <Calendar size={16} color={colors.primary} />
+                <Text style={styles.splitInfoTitle}>
+                  {selectedDaysCount} दिवस निवडले ({fromDate} ते {toDate})
+                </Text>
+              </View>
+
+              <View style={styles.splitInfoRow}>
+                <Text style={styles.splitInfoLabel}>दररोज विभागणी रक्कम:</Text>
+                <Text style={styles.splitInfoValue}>
+                  {numericAmountVal > 0
+                    ? `${formatCurrency(Math.round(numericAmountVal / selectedDaysCount))} / दिवस`
+                    : 'रक्कम प्रविष्ट करा'}
+                </Text>
+              </View>
+
+              {numHoursVal > 0 ? (
+                <View style={styles.splitInfoRow}>
+                  <Text style={styles.splitInfoLabel}>
+                    दररोज {hoursOrTrips.includes('फेऱ्या') ? 'फेऱ्या' : 'तास'}:
+                  </Text>
+                  <Text style={styles.splitInfoValue}>
+                    {(numHoursVal / selectedDaysCount).toFixed(1)}{' '}
+                    {hoursOrTrips.includes('फेऱ्या') ? 'फेऱ्या/दिवस' : 'तास/दिवस'}
+                  </Text>
+                </View>
+              ) : null}
+
+              <Text style={styles.splitInfoNote}>
+                💡 नोंद सेव्ह केल्यावर ही रक्कम आपोआप प्रत्येक दिवसाच्या हिशोबात समान विभागली जाईल.
+              </Text>
+            </View>
+          )}
+
           <View style={styles.btnWrapper}>
             <AppButton
-              title={saving ? 'सेव्ह होत आहे...' : 'सेव्ह करा'}
+              title={
+                saving
+                  ? 'सेव्ह होत आहे...'
+                  : selectedDaysCount > 1
+                  ? `${selectedDaysCount} दिवसांत विभागून सेव्ह करा`
+                  : 'सेव्ह करा'
+              }
               onPress={handleSave}
               variant="primary"
             />
@@ -1000,6 +1073,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: colors.white,
+  },
+  splitInfoBanner: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  splitInfoTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#92400E',
+  },
+  splitInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 3,
+  },
+  splitInfoLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#78350F',
+  },
+  splitInfoValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#15803D',
+  },
+  splitInfoNote: {
+    fontSize: 10.5,
+    fontWeight: '500',
+    color: '#B45309',
+    marginTop: 6,
+    fontStyle: 'italic',
   },
 });
 

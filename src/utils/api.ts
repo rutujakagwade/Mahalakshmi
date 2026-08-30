@@ -5,8 +5,8 @@
 
 // Configure base URL: change to your machine's LAN IP when testing on real Android/iOS device
 // e.g. 'http://192.168.1.100:8000/api' or 'http://10.0.2.2:8000/api' for Android emulator
-export const API_BASE_URL = 'http://35.154.122.181/mahalaxmiEMbackend-/public/index.php/api';
-// export const API_BASE_URL = 'http://10.147.238.128:8000/api';
+// export const API_BASE_URL = 'http://35.154.122.181/mahalaxmiEMbackend-/public/index.php/api';
+export const API_BASE_URL = 'http://10.147.238.128:8000/api';
 
 
 
