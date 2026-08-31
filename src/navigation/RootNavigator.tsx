@@ -5,10 +5,14 @@ import { ActiveScreen } from '../types/navigation';
 import { SplashScreen } from '../screens/Splash/SplashScreen';
 import { PinLoginScreen } from '../screens/Login/PinLoginScreen';
 import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
-import { DailyEntryScreen } from '../screens/DailyEntry/DailyEntryScreen';
-import { MachineEntryScreen } from '../screens/MachineEntry/MachineEntryScreen';
+import { KamaiEntryScreen } from '../screens/DailyEntry/KamaiEntryScreen';
+import { KharchEntryScreen } from '../screens/DailyEntry/KharchEntryScreen';
+import { NavinKamForm } from '../screens/MachineEntry/NavinKamForm';
+import { ChaluKamListScreen } from '../screens/Work/ChaluKamListScreen';
+import { MajurYadiScreen } from '../screens/Labour/MajurYadiScreen';
 import { CustomerListScreen } from '../screens/Customer/CustomerListScreen';
 import { DateReportScreen } from '../screens/Reports/DateReportScreen';
+import { KharchReportScreen } from '../screens/Reports/KharchReportScreen';
 import { CalendarViewScreen } from '../screens/Calendar/CalendarViewScreen';
 import { MonthlyReportScreen } from '../screens/Reports/MonthlyReportScreen';
 import { UdharReportScreen } from '../screens/Reports/UdharReportScreen';
@@ -18,6 +22,8 @@ import { LoanListScreen } from '../screens/Loan/LoanListScreen';
 import { AddLoanScreen } from '../screens/Loan/AddLoanScreen';
 import { LoanDetailScreen } from '../screens/Loan/LoanDetailScreen';
 import { EditLoanScreen } from '../screens/Loan/EditLoanScreen';
+import { AddCustomerScreen } from '../screens/Customer/AddCustomerScreen';
+import { EditCustomerScreen } from '../screens/Customer/EditCustomerScreen';
 
 import { DrawerNavigator } from './DrawerNavigator';
 import { initAuthToken } from '../utils/api';
@@ -78,6 +84,10 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'S
   // Handle hardware back press on Android
   useEffect(() => {
     const handleBackPress = () => {
+      if (isDrawerOpen) {
+        setIsDrawerOpen(false);
+        return true;
+      }
       if (
         currentScreen !== 'Dashboard' &&
         currentScreen !== 'PinLogin' &&
@@ -103,7 +113,7 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'S
     );
 
     return () => backHandler.remove();
-  }, [currentScreen, navigateTo]);
+  }, [currentScreen, isDrawerOpen, navigateTo, selectedLoanId, handleNavigateToLoanDetail]);
 
   return (
     <View style={tw`relative flex-1 bg-stone-900 font-sans antialiased`}>
@@ -123,16 +133,49 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'S
         />
       )}
 
-      {currentScreen === 'DailyEntry' && (
-        <DailyEntryScreen onBack={() => navigateTo('Dashboard')} />
+      {currentScreen === 'KamaiEntry' && (
+        <KamaiEntryScreen onBack={() => navigateTo('Dashboard')} />
       )}
 
-      {currentScreen === 'MachineEntry' && (
-        <MachineEntryScreen onBack={() => navigateTo('Dashboard')} />
+      {currentScreen === 'KharchEntry' && (
+        <KharchEntryScreen onBack={() => navigateTo('Dashboard')} />
+      )}
+
+      {(currentScreen === 'MajurYadi' || currentScreen === 'LabourList' || currentScreen === 'MachineEntry') && (
+        <MajurYadiScreen onBack={() => navigateTo('Dashboard')} />
+      )}
+
+      {currentScreen === 'NavinKam' && (
+        <NavinKamForm
+          onBack={() => navigateTo('Dashboard')}
+          onNavigateToChaluKam={() => navigateTo('ChaluKamList')}
+        />
+      )}
+
+      {currentScreen === 'ChaluKamList' && (
+        <ChaluKamListScreen
+          onBack={() => navigateTo('Dashboard')}
+          onNavigateToNavinKam={() => navigateTo('NavinKam')}
+        />
       )}
 
       {currentScreen === 'CustomerList' && (
         <CustomerListScreen onBack={() => navigateTo('Dashboard')} />
+      )}
+
+      {currentScreen === 'AddCustomer' && (
+        <AddCustomerScreen
+          onBack={() => navigateTo('CustomerList')}
+          onSuccess={() => navigateTo('CustomerList')}
+        />
+      )}
+
+      {currentScreen === 'EditCustomer' && (
+        <EditCustomerScreen
+          customerId={selectedLoanId}
+          onBack={() => navigateTo('CustomerList')}
+          onSuccess={() => navigateTo('CustomerList')}
+        />
       )}
 
       {currentScreen === 'MyLoan' && (
@@ -168,6 +211,13 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'S
 
       {currentScreen === 'DateReport' && (
         <DateReportScreen onBack={() => navigateTo('Dashboard')} />
+      )}
+
+      {currentScreen === 'KharchReport' && (
+        <KharchReportScreen
+          onBack={() => navigateTo('Dashboard')}
+          onNavigateToAddKharch={() => navigateTo('KharchEntry')}
+        />
       )}
 
       {currentScreen === 'CalendarView' && (

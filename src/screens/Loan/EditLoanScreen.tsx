@@ -5,18 +5,24 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  TouchableOpacity,
+  TextInput,
   ActivityIndicator,
 } from 'react-native';
 import tw from 'twrnc';
-import { AppHeader } from '../../components/AppHeader';
-import { AppInput } from '../../components/AppInput';
 import { AppDropdown } from '../../components/AppDropdown';
-import { AppButton } from '../../components/AppButton';
-import { AppCard } from '../../components/AppCard';
-import { colors } from '../../theme';
+import { formatCurrency } from '../../utils/currency';
 import { LoanService } from '../../utils/api';
 import { Loan } from '../../types/loan';
-import { CreditCard, FileText, Bell } from 'lucide-react-native';
+import {
+  CreditCard,
+  Bell,
+  CheckCircle,
+  ArrowLeft,
+  Building,
+  FileText,
+  StickyNote,
+} from 'lucide-react-native';
 
 interface EditLoanScreenProps {
   loanId: string;
@@ -32,8 +38,8 @@ export const EditLoanScreen: React.FC<EditLoanScreenProps> = ({
   const [loan, setLoan] = useState<Loan | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
+  const [savedMsg, setSavedMsg] = useState<string>('');
 
-  // Editable fields (non-financial – cannot change total/EMI after creation)
   const [name, setName] = useState<string>('');
   const [loanType, setLoanType] = useState<string>('');
   const [lenderName, setLenderName] = useState<string>('');
@@ -79,7 +85,6 @@ export const EditLoanScreen: React.FC<EditLoanScreenProps> = ({
     setSaving(true);
     try {
       await LoanService.update(loanId, {
-        // Pass required fields unchanged
         name: name.trim(),
         loan_type: loanType || undefined,
         lender_name: lenderName.trim(),
@@ -87,7 +92,6 @@ export const EditLoanScreen: React.FC<EditLoanScreenProps> = ({
         interest_rate: parseFloat(interestRate) || undefined,
         reminder_days_before: parseInt(reminderDays, 10) || 3,
         notes: notes.trim() || undefined,
-        // These are required by backend validation - send original values
         total_amount: loan.totalAmount,
         start_date: loan.startDate,
         emi_amount: loan.emiAmount,
@@ -95,9 +99,11 @@ export const EditLoanScreen: React.FC<EditLoanScreenProps> = ({
         total_installments: loan.totalInstallments,
       });
 
-      Alert.alert('यशस्वी', 'कर्जाचे तपशील यशस्वीरित्या अपडेट केले!', [
-        { text: 'ठीक आहे', onPress: onSuccess },
-      ]);
+      setSavedMsg('कर्ज तपशील यशस्वीरित्या अपडेट झाले!');
+      setTimeout(() => {
+        setSavedMsg('');
+        onSuccess();
+      }, 1200);
     } catch (err: any) {
       Alert.alert('त्रुटी', err?.message || 'कर्ज अपडेट करताना समस्या आली. कृपया पुन्हा प्रयत्न करा.');
     } finally {
@@ -107,200 +113,390 @@ export const EditLoanScreen: React.FC<EditLoanScreenProps> = ({
 
   if (loading) {
     return (
-      <View style={tw`flex-1 bg-[${colors.background}]`}>
-        <AppHeader title="कर्ज संपादन करा" showBack={true} onBackPress={onBack} />
+      <View style={styles.screen}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+            <ArrowLeft size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>कर्ज संपादन</Text>
+        </View>
         <View style={tw`flex-1 items-center justify-center`}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={tw`text-xs text-[${colors.textTertiary}] mt-2 font-medium`}>
-            कर्ज डेटा लोड होत आहे...
-          </Text>
+          <ActivityIndicator size="large" color="#6B121C" />
+          <Text style={tw`text-xs text-gray-500 mt-2 font-medium`}>माहिती लोड होत आहे...</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={tw`flex-1 bg-[${colors.background}]`}>
-      <AppHeader
-        title="कर्ज संपादन (Edit Loan)"
-        showBack={true}
-        onBackPress={onBack}
-      />
+    <View style={styles.screen}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+          <ArrowLeft size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>कर्ज संपादन</Text>
+        <TouchableOpacity
+          style={styles.saveHeaderBtn}
+          onPress={handleSave}
+          disabled={saving}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.saveHeaderBtnText}>{saving ? '...' : 'जतन करा'}</Text>
+        </TouchableOpacity>
+      </View>
 
-      <ScrollView style={tw`flex-1`} contentContainerStyle={tw`p-4 pb-24 gap-4`}>
-        {/* Info banner: financial fields are read-only */}
-        <View style={styles.infoBanner}>
-          <Text style={styles.infoBannerText}>
-            💡 कर्जाची एकूण रक्कम, EMI आणि हप्त्यांचे वेळापत्रक बदलता येणार नाही. फक्त नाव, बँक, व्याजदर आणि नोंदी बदलता येतात.
-          </Text>
-        </View>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {savedMsg ? (
+          <View style={styles.successBanner}>
+            <CheckCircle size={16} color="#15803D" />
+            <Text style={styles.successText}>{savedMsg}</Text>
+          </View>
+        ) : null}
 
-        {/* Read-only summary of financial info */}
+        {/* Read-only financial snapshot banner */}
         {loan && (
-          <View style={styles.readOnlySummary}>
-            <Text style={styles.readOnlyTitle}>सध्याचे कर्ज तपशील (Read-Only)</Text>
-            <View style={styles.readOnlyRow}>
-              <Text style={styles.readOnlyLabel}>एकूण कर्ज रक्कम:</Text>
-              <Text style={styles.readOnlyValue}>₹{loan.totalAmount.toLocaleString('en-IN')}</Text>
+          <View style={styles.readOnlyCard}>
+            <Text style={styles.readOnlyTitle}>सध्याचे कर्ज तपशील (स्थिर)</Text>
+            <View style={styles.readOnlyGrid}>
+              <View style={styles.readOnlyCol}>
+                <Text style={styles.readOnlyLabel}>एकूण कर्ज:</Text>
+                <Text style={styles.readOnlyValue}>{formatCurrency(loan.totalAmount)}</Text>
+              </View>
+              <View style={styles.readOnlyCol}>
+                <Text style={styles.readOnlyLabel}>EMI हप्ता:</Text>
+                <Text style={styles.readOnlyValue}>{formatCurrency(loan.emiAmount)}/महिना</Text>
+              </View>
             </View>
-            <View style={styles.readOnlyRow}>
-              <Text style={styles.readOnlyLabel}>EMI रक्कम:</Text>
-              <Text style={styles.readOnlyValue}>₹{loan.emiAmount.toLocaleString('en-IN')}/महिना</Text>
-            </View>
-            <View style={styles.readOnlyRow}>
-              <Text style={styles.readOnlyLabel}>एकूण हप्ते:</Text>
-              <Text style={styles.readOnlyValue}>{loan.totalInstallments} हप्ते</Text>
-            </View>
-            <View style={styles.readOnlyRow}>
-              <Text style={styles.readOnlyLabel}>सुरुवात तारीख:</Text>
-              <Text style={styles.readOnlyValue}>{loan.startDate}</Text>
+            <View style={styles.readOnlyGrid}>
+              <View style={styles.readOnlyCol}>
+                <Text style={styles.readOnlyLabel}>हप्ते संख्या:</Text>
+                <Text style={styles.readOnlyValue}>{loan.totalInstallments} हप्ते</Text>
+              </View>
+              <View style={styles.readOnlyCol}>
+                <Text style={styles.readOnlyLabel}>सुरुवात दिनांक:</Text>
+                <Text style={styles.readOnlyValue}>{loan.startDate}</Text>
+              </View>
             </View>
           </View>
         )}
 
-        {/* Editable Fields */}
-        <AppCard variant="elevated" style={styles.card}>
-          <View style={tw`flex flex-row items-center gap-2 mb-3 pb-2 border-b border-gray-100`}>
-            <CreditCard size={18} color={colors.primary} />
-            <Text style={styles.cardSectionTitle}>कर्जाचे बदलता येणारे तपशील</Text>
+        {/* कर्जाचे नाव */}
+        <View style={styles.inputRow}>
+          <View style={styles.labelContainer}>
+            <CreditCard size={18} color="#78350F" />
+            <Text style={styles.labelText}>कर्जाचे नाव <Text style={styles.requiredStar}>*</Text></Text>
           </View>
-
-          <AppInput
-            label="कर्जाचे नाव"
+          <TextInput
+            style={styles.textInputBox}
             value={name}
             onChangeText={setName}
-            placeholder="उदा. JCB 3DX कर्ज / ट्रॅक्टर कर्ज"
-            required
+            placeholder="उदा. JCB 3DX कर्ज"
+            placeholderTextColor="#9CA3AF"
           />
+        </View>
 
-          <AppDropdown
-            label="कर्जाचा प्रकार"
-            value={loanType}
-            onChangeText={setLoanType}
-            options={[
-              { label: 'मशीन कर्ज (Machine Loan)', value: 'मशीन कर्ज (Machine Loan)' },
-              { label: 'वाहन कर्ज (Vehicle Loan)', value: 'वाहन कर्ज (Vehicle Loan)' },
-              { label: 'व्यवसाय कर्ज (Business Loan)', value: 'व्यवसाय कर्ज (Business Loan)' },
-              { label: 'वैयक्तिक कर्ज (Personal Loan)', value: 'वैयक्तिक कर्ज (Personal Loan)' },
-              { label: 'गृहकर्ज (Home Loan)', value: 'गृहकर्ज (Home Loan)' },
-              { label: 'सावकारी / खाजगी कर्ज', value: 'सावकारी / खाजगी कर्ज' },
-            ]}
-          />
+        {/* कर्जाचा प्रकार */}
+        <View style={styles.inputRow}>
+          <View style={styles.labelContainer}>
+            <FileText size={18} color="#78350F" />
+            <Text style={styles.labelText}>कर्जाचा प्रकार</Text>
+          </View>
+          <View style={styles.dropdownWrapper}>
+            <AppDropdown
+              label=""
+              value={loanType}
+              onChangeText={setLoanType}
+              options={[
+                { label: 'मशीन कर्ज (Machine Loan)', value: 'मशीन कर्ज (Machine Loan)' },
+                { label: 'वाहन कर्ज (Vehicle Loan)', value: 'वाहन कर्ज (Vehicle Loan)' },
+                { label: 'व्यवसाय कर्ज (Business Loan)', value: 'व्यवसाय कर्ज (Business Loan)' },
+                { label: 'वैयक्तिक कर्ज (Personal Loan)', value: 'वैयक्तिक कर्ज (Personal Loan)' },
+                { label: 'गृहकर्ज (Home Loan)', value: 'गृहकर्ज (Home Loan)' },
+                { label: 'सावकारी / खाजगी कर्ज', value: 'सावकारी / खाजगी कर्ज' },
+              ]}
+            />
+          </View>
+        </View>
 
-          <AppInput
-            label="बँक / सावकाराचे नाव"
+        {/* बँक / सावकाराचे नाव */}
+        <View style={styles.inputRow}>
+          <View style={styles.labelContainer}>
+            <Building size={18} color="#78350F" />
+            <Text style={styles.labelText}>बँक / सावकार <Text style={styles.requiredStar}>*</Text></Text>
+          </View>
+          <TextInput
+            style={styles.textInputBox}
             value={lenderName}
             onChangeText={setLenderName}
-            placeholder="उदा. HDFC Bank, SBI, कोटक"
-            required
+            placeholder="उदा. HDFC Bank, SBI"
+            placeholderTextColor="#9CA3AF"
           />
+        </View>
 
-          <AppInput
-            label="कर्ज खाते क्रमांक (Loan A/c No. - पर्यायी)"
+        {/* खाते क्रमांक */}
+        <View style={styles.inputRow}>
+          <View style={styles.labelContainer}>
+            <FileText size={18} color="#78350F" />
+            <Text style={styles.labelText}>खाते क्रमांक</Text>
+          </View>
+          <TextInput
+            style={styles.textInputBox}
             value={accountNumber}
             onChangeText={setAccountNumber}
             placeholder="उदा. LN-12345678"
+            placeholderTextColor="#9CA3AF"
           />
+        </View>
 
-          <AppInput
-            label="वार्षिक व्याजदर (% - पर्यायी)"
+        {/* व्याजदर */}
+        <View style={styles.inputRow}>
+          <View style={styles.labelContainer}>
+            <FileText size={18} color="#78350F" />
+            <Text style={styles.labelText}>व्याजदर (%)</Text>
+          </View>
+          <TextInput
+            style={styles.textInputBox}
             value={interestRate}
             onChangeText={setInterestRate}
             placeholder="उदा. 8.5"
+            placeholderTextColor="#9CA3AF"
             keyboardType="numeric"
           />
-        </AppCard>
+        </View>
 
-        {/* Reminder Settings */}
-        <AppCard variant="elevated" style={styles.card}>
-          <View style={tw`flex flex-row items-center gap-2 mb-3 pb-2 border-b border-gray-100`}>
-            <Bell size={18} color={colors.primary} />
-            <Text style={styles.cardSectionTitle}>रिमाइंडर आणि नोंदी</Text>
+        {/* रिमाइंडर */}
+        <View style={styles.inputRow}>
+          <View style={styles.labelContainer}>
+            <Bell size={18} color="#78350F" />
+            <Text style={styles.labelText}>रिमाइंडर</Text>
           </View>
+          <View style={styles.dropdownWrapper}>
+            <AppDropdown
+              label=""
+              value={reminderDays}
+              onChangeText={setReminderDays}
+              options={[
+                { label: '७ दिवस आधी (7 Days Before)', value: '7' },
+                { label: '३ दिवस आधी (3 Days Before - शिफारस)', value: '3' },
+                { label: '१ दिवस आधी (1 Day Before)', value: '1' },
+                { label: 'हप्त्याच्या दिवशी (On Due Date)', value: '0' },
+              ]}
+            />
+          </View>
+        </View>
 
-          <AppDropdown
-            label="हप्ता रिमाइंडर कधी हवा?"
-            value={reminderDays}
-            onChangeText={setReminderDays}
-            options={[
-              { label: '७ दिवस आधी (7 Days Before)', value: '7' },
-              { label: '३ दिवस आधी (3 Days Before - शिफारस)', value: '3' },
-              { label: '१ दिवस आधी (1 Day Before)', value: '1' },
-              { label: 'हप्त्याच्या दिवशी (On Due Date)', value: '0' },
-            ]}
-          />
-
-          <AppInput
-            label="इतर नोंदी / टीप (Notes - पर्यायी)"
+        {/* नोंद */}
+        <View style={styles.notesRow}>
+          <View style={styles.labelContainerNotes}>
+            <StickyNote size={18} color="#78350F" />
+            <Text style={styles.labelText}>नोंद</Text>
+          </View>
+          <TextInput
+            style={styles.notesArea}
             value={notes}
             onChangeText={setNotes}
-            placeholder="उदा. ऑटो डेबिट HDFC खात्यातून दरमहा ५ तारखेला"
+            placeholder="उदा. ऑटो डेबिट HDFC खात्यातून दरमहा ५ तारखेला..."
+            placeholderTextColor="#9CA3AF"
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
           />
-        </AppCard>
+        </View>
 
-        <AppButton
-          title={saving ? 'अपडेट होत आहे...' : 'बदल जतन करा (Save Changes)'}
-          onPress={handleSave}
-          variant="primary"
-        />
+        {/* Bottom Save Button */}
+        <View style={styles.bottomBtnWrapper}>
+          <TouchableOpacity
+            style={styles.bottomSaveBtn}
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.bottomSaveBtnText}>
+              {saving ? 'अपडेट होत आहे...' : 'बदल जतन करा'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  infoBanner: {
-    backgroundColor: '#FFFBEB',
+  screen: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  header: {
+    backgroundColor: '#6B121C',
+    paddingTop: 48,
+    paddingBottom: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backBtn: {
+    padding: 6,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: 'white',
+    flex: 1,
+    marginLeft: 12,
+  },
+  saveHeaderBtn: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  saveHeaderBtnText: {
+    color: '#1C1917',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+    gap: 14,
+  },
+  successBanner: {
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  successText: {
+    color: '#15803D',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  readOnlyCard: {
+    backgroundColor: '#FEF3C7',
     borderWidth: 1,
     borderColor: '#FDE68A',
     borderRadius: 12,
     padding: 12,
-  },
-  infoBannerText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#92400E',
-    lineHeight: 18,
-  },
-  readOnlySummary: {
-    backgroundColor: colors.surfaceSecondary,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    borderRadius: 14,
-    padding: 14,
-    gap: 6,
+    gap: 8,
   },
   readOnlyTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    color: colors.textTertiary,
-    marginBottom: 4,
+    color: '#854D0E',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  readOnlyRow: {
+  readOnlyGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+  },
+  readOnlyCol: {
+    flex: 1,
   },
   readOnlyLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: '#78350F',
   },
   readOnlyValue: {
     fontSize: 13,
     fontWeight: '800',
-    color: colors.textPrimary,
+    color: '#1C1917',
+    marginTop: 1,
   },
-  card: {
-    padding: 16,
-    borderRadius: 16,
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  cardSectionTitle: {
-    fontSize: 14,
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: '42%',
+  },
+  labelContainerNotes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: '24%',
+    marginTop: 8,
+  },
+  labelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1C1917',
+  },
+  requiredStar: {
+    color: '#DC2626',
     fontWeight: '800',
-    color: colors.primary,
+  },
+  dropdownWrapper: {
+    flex: 1,
+  },
+  textInputBox: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14,
+    color: '#1F2937',
+  },
+  notesRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginTop: 4,
+  },
+  notesArea: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#1F2937',
+    minHeight: 80,
+  },
+  bottomBtnWrapper: {
+    marginTop: 6,
+  },
+  bottomSaveBtn: {
+    backgroundColor: '#6B121C',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  bottomSaveBtnText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });
 

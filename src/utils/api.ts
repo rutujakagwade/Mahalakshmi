@@ -158,7 +158,12 @@ export const CustomerService = {
     return res.data;
   },
 
-  create: async (payload: { name: string; location?: string; phone?: string }) => {
+  getById: async (id: string) => {
+    const res = await apiRequest(`/customers/${id}`);
+    return res.data;
+  },
+
+  create: async (payload: { name: string; location?: string; phone?: string; notes?: string }) => {
     const res = await apiRequest('/customers', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -166,7 +171,7 @@ export const CustomerService = {
     return res.data;
   },
 
-  update: async (id: string, payload: { name: string; location?: string; phone?: string }) => {
+  update: async (id: string, payload: { name: string; location?: string; phone?: string; notes?: string }) => {
     const res = await apiRequest(`/customers/${id}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
@@ -257,6 +262,28 @@ export const DailyLedgerService = {
       body: JSON.stringify(payload),
     });
     return res.data;
+  },
+
+  update: async (
+    id: string | number,
+    payload: Partial<{
+      entry_date: string;
+      type: 'earnings' | 'expense';
+      description: string;
+      amount: number;
+      payment_type: 'cash' | 'online' | 'credit';
+      notes: string;
+    }>
+  ) => {
+    const res = await apiRequest(`/daily-entries/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    return res.data;
+  },
+
+  delete: async (id: string | number) => {
+    return apiRequest(`/daily-entries/${id}`, { method: 'DELETE' });
   },
 
   getSummary: async (date?: string) => {
