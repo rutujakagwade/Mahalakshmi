@@ -14,6 +14,10 @@ import { MonthlyReportScreen } from '../screens/Reports/MonthlyReportScreen';
 import { UdharReportScreen } from '../screens/Reports/UdharReportScreen';
 import { NotificationScreen } from '../screens/Notification/NotificationScreen';
 import { SettingsScreen } from '../screens/Settings/SettingsScreen';
+import { LoanListScreen } from '../screens/Loan/LoanListScreen';
+import { AddLoanScreen } from '../screens/Loan/AddLoanScreen';
+import { LoanDetailScreen } from '../screens/Loan/LoanDetailScreen';
+import { EditLoanScreen } from '../screens/Loan/EditLoanScreen';
 
 import { DrawerNavigator } from './DrawerNavigator';
 import { initAuthToken } from '../utils/api';
@@ -25,10 +29,21 @@ interface RootNavigatorProps {
 
 export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'Splash' }) => {
   const [currentScreen, setCurrentScreen] = useState<ActiveScreen>(initialScreen);
+  const [selectedLoanId, setSelectedLoanId] = useState<string>('');
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
 
   const navigateTo = useCallback((screen: ActiveScreen) => {
     setCurrentScreen(screen);
+  }, []);
+
+  const handleNavigateToLoanDetail = useCallback((loanId: string) => {
+    setSelectedLoanId(loanId);
+    setCurrentScreen('LoanDetail');
+  }, []);
+
+  const handleNavigateToEditLoan = useCallback((loanId: string) => {
+    setSelectedLoanId(loanId);
+    setCurrentScreen('EditLoan');
   }, []);
 
   useEffect(() => {
@@ -68,6 +83,14 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'S
         currentScreen !== 'PinLogin' &&
         currentScreen !== 'Splash'
       ) {
+        if (currentScreen === 'AddLoan' || currentScreen === 'LoanDetail') {
+          navigateTo('MyLoan');
+          return true;
+        }
+        if (currentScreen === 'EditLoan') {
+          handleNavigateToLoanDetail(selectedLoanId);
+          return true;
+        }
         navigateTo('Dashboard');
         return true;
       }
@@ -112,6 +135,37 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'S
         <CustomerListScreen onBack={() => navigateTo('Dashboard')} />
       )}
 
+      {currentScreen === 'MyLoan' && (
+        <LoanListScreen
+          onBack={() => navigateTo('Dashboard')}
+          onNavigateToAddLoan={() => navigateTo('AddLoan')}
+          onNavigateToLoanDetail={handleNavigateToLoanDetail}
+        />
+      )}
+
+      {currentScreen === 'AddLoan' && (
+        <AddLoanScreen
+          onBack={() => navigateTo('MyLoan')}
+          onSuccess={() => navigateTo('MyLoan')}
+        />
+      )}
+
+      {currentScreen === 'LoanDetail' && (
+        <LoanDetailScreen
+          loanId={selectedLoanId}
+          onBack={() => navigateTo('MyLoan')}
+          onNavigateToEdit={handleNavigateToEditLoan}
+        />
+      )}
+
+      {currentScreen === 'EditLoan' && (
+        <EditLoanScreen
+          loanId={selectedLoanId}
+          onBack={() => handleNavigateToLoanDetail(selectedLoanId)}
+          onSuccess={() => handleNavigateToLoanDetail(selectedLoanId)}
+        />
+      )}
+
       {currentScreen === 'DateReport' && (
         <DateReportScreen onBack={() => navigateTo('Dashboard')} />
       )}
@@ -122,7 +176,6 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'S
           onNavigateToEntry={() => navigateTo('MachineEntry')}
         />
       )}
-
 
       {(currentScreen === 'MonthlyReport' || currentScreen === 'MachineReport') && (
         <MonthlyReportScreen onBack={() => navigateTo('Dashboard')} />
@@ -135,8 +188,6 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'S
       {currentScreen === 'NotificationList' && (
         <NotificationScreen onBack={() => navigateTo('Dashboard')} />
       )}
-
-
 
       {currentScreen === 'Settings' && (
         <SettingsScreen

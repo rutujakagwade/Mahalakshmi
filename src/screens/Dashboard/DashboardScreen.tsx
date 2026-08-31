@@ -26,6 +26,7 @@ import {
   Wallet,
   X,
   ChevronRight,
+  CreditCard,
 } from 'lucide-react-native';
 import { ActiveScreen } from '../../types/navigation';
 import {
@@ -313,14 +314,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
 
               <View style={tw`flex flex-row gap-3`}>
                 <ActionTileCard
-                  title="उधारी रिपोर्ट"
-                  subtitle="उधारी हिशोब"
-                  bgColor="bg-red-600"
-                  icon={<Users size={22} color="white" />}
-                  onPress={() => onNavigate('UdharReport')}
+                  title="माझं Loan"
+                  subtitle="कर्ज व EMI हिशोब"
+                  bgColor="bg-amber-600"
+                  icon={<CreditCard size={22} color="white" />}
+                  onPress={() => onNavigate('MyLoan')}
                 />
                 <ActionTileCard
-                  title="तारीखनुसार"
+                  title="तारीख अहवाल"
                   subtitle="दिनांक निहित"
                   bgColor={`bg-[${colors.tileDatewise}]`}
                   icon={<Calendar size={22} color="white" />}

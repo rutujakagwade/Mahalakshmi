@@ -15,10 +15,13 @@ export type RootStackParamList = {
   MonthlyReport: undefined;
   MachineReport: undefined;
   UdharReport: undefined;
+  MyLoan: undefined;
+  LoanDetail: { loanId: string };
+  AddLoan: undefined;
+  EditLoan: { loanId: string };
   NotificationList: undefined;
   Settings: undefined;
 };
 
-
-
 export type ActiveScreen = keyof RootStackParamList;
+

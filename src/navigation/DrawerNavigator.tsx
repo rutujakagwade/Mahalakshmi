@@ -1,7 +1,7 @@
 import tw from 'twrnc';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import React from 'react';
-import { X, Home, FileText, Truck, Users, BarChart3, Calendar, Settings, LogOut, Bell } from 'lucide-react-native';
+import { X, Home, FileText, Truck, Users, BarChart3, Calendar, Settings, LogOut, Bell, CreditCard } from 'lucide-react-native';
 import { ActiveScreen } from '../types/navigation';
 import { colors, radii, shadows } from '../theme';
 
@@ -25,6 +25,7 @@ export const DrawerNavigator: React.FC<DrawerNavigatorProps> = ({
     { id: 'DailyEntry', label: 'रोजचा हिशोब', icon: <FileText size={18} color={activeScreen === 'DailyEntry' ? colors.primary : colors.textMuted} /> },
     { id: 'MachineEntry', label: 'मशीन नोंद', icon: <Truck size={18} color={activeScreen === 'MachineEntry' ? colors.primary : colors.textMuted} /> },
     { id: 'CustomerList', label: 'ग्राहक यादी', icon: <Users size={18} color={activeScreen === 'CustomerList' ? colors.primary : colors.textMuted} /> },
+    { id: 'MyLoan', label: 'माझं Loan (कर्ज खाते)', icon: <CreditCard size={18} color={activeScreen === 'MyLoan' ? colors.primary : colors.textMuted} /> },
     { id: 'CalendarView', label: 'कॅलेंडर हिशोब', icon: <Calendar size={18} color={activeScreen === 'CalendarView' ? colors.primary : colors.textMuted} /> },
     { id: 'DateReport', label: 'तारीखनुसार अहवाल', icon: <Calendar size={18} color={activeScreen === 'DateReport' ? colors.primary : colors.textMuted} /> },
     { id: 'MonthlyReport', label: 'मासिक व मशीन रिपोर्ट', icon: <BarChart3 size={18} color={activeScreen === 'MonthlyReport' ? colors.primary : colors.textMuted} /> },

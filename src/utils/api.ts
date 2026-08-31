@@ -6,7 +6,9 @@
 // Configure base URL: change to your machine's LAN IP when testing on real Android/iOS device
 // e.g. 'http://192.168.1.100:8000/api' or 'http://10.0.2.2:8000/api' for Android emulator
 // export const API_BASE_URL = 'http://35.154.122.181/mahalaxmiEMbackend-/public/index.php/api';
-export const API_BASE_URL = 'http://10.147.238.128:8000/api';
+// export const API_BASE_URL = 'http://10.147.238.128:8000/api';
+
+export const API_BASE_URL = 'http://35.154.122.181/mahalakshmi-api/public/index.php/api';
 
 
 
@@ -385,5 +387,62 @@ export const NotificationService = {
     });
   },
 };
+
+export const LoanService = {
+  getAll: async (status?: string) => {
+    const res = await apiRequest('/loans', {
+      params: status ? { status } : undefined,
+    });
+    return res.data;
+  },
+
+  getDashboardSummary: async () => {
+    const res = await apiRequest('/loans/summary/dashboard');
+    return res.data;
+  },
+
+  getById: async (id: string | number) => {
+    const res = await apiRequest(`/loans/${id}`);
+    return res.data;
+  },
+
+  create: async (data: any) => {
+    const res = await apiRequest('/loans', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+
+  update: async (id: string | number, data: any) => {
+    const res = await apiRequest(`/loans/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+
+  delete: async (id: string | number) => {
+    return apiRequest(`/loans/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  payInstallment: async (loanId: string | number, installmentId: string | number, payload: any) => {
+    const res = await apiRequest(`/loans/${loanId}/installments/${installmentId}/pay`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res;
+  },
+
+  unpayInstallment: async (loanId: string | number, installmentId: string | number) => {
+    const res = await apiRequest(`/loans/${loanId}/installments/${installmentId}/unpay`, {
+      method: 'POST',
+    });
+    return res;
+  },
+};
+
 
 
