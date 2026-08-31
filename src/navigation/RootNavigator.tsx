@@ -5,8 +5,10 @@ import { ActiveScreen } from '../types/navigation';
 import { SplashScreen } from '../screens/Splash/SplashScreen';
 import { PinLoginScreen } from '../screens/Login/PinLoginScreen';
 import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
-import { DailyEntryScreen } from '../screens/DailyEntry/DailyEntryScreen';
+import { KamaiEntryScreen } from '../screens/DailyEntry/KamaiEntryScreen';
+import { KharchEntryScreen } from '../screens/DailyEntry/KharchEntryScreen';
 import { MachineEntryScreen } from '../screens/MachineEntry/MachineEntryScreen';
+import { NavinKamForm } from '../screens/MachineEntry/NavinKamForm';
 import { CustomerListScreen } from '../screens/Customer/CustomerListScreen';
 import { DateReportScreen } from '../screens/Reports/DateReportScreen';
 import { CalendarViewScreen } from '../screens/Calendar/CalendarViewScreen';
@@ -100,12 +102,20 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialScreen = 'S
         />
       )}
 
-      {currentScreen === 'DailyEntry' && (
-        <DailyEntryScreen onBack={() => navigateTo('Dashboard')} />
+      {currentScreen === 'KamaiEntry' && (
+        <KamaiEntryScreen onBack={() => navigateTo('Dashboard')} />
+      )}
+
+      {currentScreen === 'KharchEntry' && (
+        <KharchEntryScreen onBack={() => navigateTo('Dashboard')} />
       )}
 
       {currentScreen === 'MachineEntry' && (
         <MachineEntryScreen onBack={() => navigateTo('Dashboard')} />
+      )}
+
+      {currentScreen === 'NavinKam' && (
+        <NavinKamForm onBack={() => navigateTo('Dashboard')} />
       )}
 
       {currentScreen === 'CustomerList' && (

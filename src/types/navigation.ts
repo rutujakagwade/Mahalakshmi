@@ -4,8 +4,10 @@ export type RootStackParamList = {
   Splash: undefined;
   PinLogin: undefined;
   Dashboard: undefined;
-  DailyEntry: undefined;
+  KamaiEntry: undefined;
+  KharchEntry: undefined;
   MachineEntry: undefined;
+  NavinKam: undefined;
   CustomerList: undefined;
   CustomerDetail: { customer: Customer };
   AddCustomer: undefined;
