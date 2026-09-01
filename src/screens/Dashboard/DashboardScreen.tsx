@@ -19,10 +19,14 @@ import {
   HardHat,
   List,
   Warehouse,
+  Menu,
+  Truck,
+  CreditCard,
 } from 'lucide-react-native';
 import { ActiveScreen } from '../../types/navigation';
-import { DashboardService } from '../../utils/api';
+import { DashboardService, DailyLedgerService } from '../../utils/api';
 import { formatCurrency } from '../../utils/currency';
+import { SafeStorage } from '../../utils/storage';
 import { colors } from '../../theme';
 
 interface DashboardScreenProps {
@@ -48,12 +52,50 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
 
   const fetchDashboard = async () => {
     try {
-      const data = await DashboardService.getSummary();
-      if (data?.todaySummary) {
+      const [data, ledgerRes, storedWorkers] = await Promise.all([
+        DashboardService.getSummary().catch(() => null),
+        DailyLedgerService.getAll({ type: 'expense' }).catch(() => []),
+        SafeStorage.getItem('@mahalaxmi_labour_workers_v2').catch(() => null),
+      ]);
+
+      // Calculate complete all-time / total expenses
+      const rawLedger = Array.isArray(ledgerRes) ? ledgerRes : Array.isArray(ledgerRes?.data) ? ledgerRes.data : [];
+      const ledgerExpenseList = rawLedger.filter((it: any) => it.type === 'expense');
+      const existingLedgerIds = new Set<string>();
+
+      let computedTotalExpense = 0;
+      ledgerExpenseList.forEach((it: any) => {
+        if (it.id) existingLedgerIds.add(String(it.id));
+        computedTotalExpense += Number(it.amount) || 0;
+      });
+
+      // Include worker payments from local storage
+      if (storedWorkers) {
+        try {
+          const workers = JSON.parse(storedWorkers);
+          if (Array.isArray(workers)) {
+            workers.forEach((w: any) => {
+              if (Array.isArray(w.payments)) {
+                w.payments.forEach((p: any) => {
+                  if (!p.ledgerId || !existingLedgerIds.has(String(p.ledgerId))) {
+                    computedTotalExpense += Number(p.amount) || 0;
+                  }
+                });
+              }
+            });
+          }
+        } catch {}
+      }
+
+      if (data?.todaySummary || data?.totalSummary) {
+        const totalEarn = Number(data.totalSummary?.earnings) || Number(data.todaySummary?.earnings) || 0;
+        const totalExp = computedTotalExpense > 0 ? computedTotalExpense : (Number(data.totalSummary?.expense) || Number(data.todaySummary?.expense) || 0);
+        const totalProf = totalEarn - totalExp;
+
         setSummary({
-          earnings: Number(data.todaySummary.earnings) || 0,
-          expense: Number(data.todaySummary.expense) || 0,
-          profit: Number(data.todaySummary.profit) || 0,
+          earnings: totalEarn,
+          expense: totalExp,
+          profit: totalProf,
         });
         setTotalJobs(Number(data.totalJobs) || 0);
         setTotalCustomers(Number(data.totalCustomers) || 0);
@@ -61,6 +103,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
         if (data.userName) {
           setUserName(data.userName);
         }
+      } else if (computedTotalExpense > 0) {
+        setSummary((prev) => ({
+          earnings: prev.earnings,
+          expense: computedTotalExpense,
+          profit: prev.earnings - computedTotalExpense,
+        }));
       }
     } catch {
       // Offline mode
@@ -79,13 +127,17 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
 
   const quickAccessItems = [
     { label: 'नवीन काम', icon: <FileText size={24} color="white" />, bgColor: '#16A34A', screen: 'NavinKam' as ActiveScreen },
-    { label: 'ग्राहक जोडा', icon: <Users size={24} color="white" />, bgColor: '#EA580C', screen: 'AddCustomer' as ActiveScreen },
+    { label: 'चालू कामे', icon: <Truck size={24} color="white" />, bgColor: '#0D9488', screen: 'ChaluKamList' as ActiveScreen },
     { label: 'कमाई', icon: <IndianRupee size={24} color="white" />, bgColor: '#16A34A', screen: 'KamaiEntry' as ActiveScreen },
     { label: 'खर्च', icon: <IndianRupee size={24} color="white" />, bgColor: '#DC2626', screen: 'KharchEntry' as ActiveScreen },
-    { label: 'मजुरी', icon: <HardHat size={24} color="white" />, bgColor: '#7C3AED', screen: 'MachineEntry' as ActiveScreen },
-    { label: 'कामची यादी', icon: <List size={24} color="white" />, bgColor: '#2563EB', screen: 'MonthlyReport' as ActiveScreen },
-    { label: 'पेमेंट', icon: <Users size={24} color="white" />, bgColor: '#7C3AED', screen: 'CustomerList' as ActiveScreen },
-    { label: 'कोठार', icon: <Warehouse size={24} color="white" />, bgColor: '#374151', screen: 'Settings' as ActiveScreen },
+    { label: 'मजूर यादी', icon: <Users size={24} color="white" />, bgColor: '#7C3AED', screen: 'MajurYadi' as ActiveScreen },
+    { label: 'मासिक रिपोर्ट', icon: <List size={24} color="white" />, bgColor: '#2563EB', screen: 'MonthlyReport' as ActiveScreen },
+    { label: 'ग्राहक यादी', icon: <Users size={24} color="white" />, bgColor: '#7C3AED', screen: 'CustomerList' as ActiveScreen },
+    { label: 'सेटिंग', icon: <Warehouse size={24} color="white" />, bgColor: '#374151', screen: 'Settings' as ActiveScreen },
+    { label: 'माझं Loan', icon: <CreditCard size={24} color="white" />, bgColor: '#D97706', screen: 'MyLoan' as ActiveScreen },
+    { label: 'खर्च अहवाल', icon: <TrendingDown size={24} color="white" />, bgColor: '#DC2626', screen: 'KharchReport' as ActiveScreen },
+    { label: 'उधारी अहवाल', icon: <TrendingUp size={24} color="white" />, bgColor: '#7C3AED', screen: 'UdharReport' as ActiveScreen },
+    { label: 'तारखेनुसार हिशोब', icon: <Calendar size={24} color="white" />, bgColor: '#0D9488', screen: 'DateReport' as ActiveScreen },
   ];
 
   return (
@@ -98,10 +150,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
               onPress={onOpenDrawer}
               style={styles.headerIconBtn}
               activeOpacity={0.7}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             >
-              <View style={styles.hamburgerLine} />
-              <View style={styles.hamburgerLine} />
-              <View style={styles.hamburgerLine} />
+              <Menu size={24} color="white" />
             </TouchableOpacity>
 
             <View style={styles.headerTitleContainer}>
@@ -150,7 +201,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
           {/* 2x2 Summary Grid */}
           <View style={styles.summaryGrid}>
             <View style={styles.summaryRow}>
-              <View style={[styles.summaryCard, { backgroundColor: '#0A7A30' }]}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => onNavigate('ChaluKamList')}
+                style={[styles.summaryCard, { backgroundColor: '#0A7A30' }]}
+              >
                 <View style={styles.texStripe1} />
                 <View style={styles.texStripe2} />
                 <View style={styles.texCircle} />
@@ -159,8 +214,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
                   <Text style={styles.summaryCardLabel}>एकूण कामे</Text>
                   <Text style={styles.summaryCardValue}>{totalJobs}</Text>
                 </View>
-              </View>
-              <View style={[styles.summaryCard, { backgroundColor: '#0C59C3' }]}>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => onNavigate('CustomerList')}
+                style={[styles.summaryCard, { backgroundColor: '#0C59C3' }]}
+              >
                 <View style={styles.texStripe1} />
                 <View style={styles.texStripe2} />
                 <View style={styles.texCircle} />
@@ -169,7 +229,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
                   <Text style={styles.summaryCardLabel}>एकूण ग्राहक</Text>
                   <Text style={styles.summaryCardValue}>{totalCustomers}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.summaryRow}>
@@ -187,9 +247,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
                   <Text style={styles.summaryCardAmount}>{formatCurrency(summary.earnings)}</Text>
                 </View>
               </TouchableOpacity>
+
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => onNavigate('KharchEntry')}
+                onPress={() => onNavigate('KharchReport')}
                 style={[styles.summaryCard, { backgroundColor: '#CD3F3B' }]}
               >
                 <View style={styles.texStripe1} />
@@ -206,7 +267,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
 
           {/* Profit Row */}
           <View style={styles.profitRow}>
-            <View style={[styles.profitCard, { backgroundColor: '#5438AF' }]}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => onNavigate('MonthlyReport')}
+              style={[styles.profitCard, { backgroundColor: '#5438AF' }]}
+            >
               <View style={styles.texStripe1} />
               <View style={styles.texCircleLarge} />
               <View style={styles.cardContent}>
@@ -215,8 +280,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
                   {formatCurrency(summary.profit)}
                 </Text>
               </View>
-            </View>
-            <View style={[styles.profitCard, { backgroundColor: '#09857D' }]}>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => onNavigate('UdharReport')}
+              style={[styles.profitCard, { backgroundColor: '#09857D' }]}
+            >
               <View style={styles.texStripe1} />
               <View style={styles.texCircleLarge} />
               <View style={styles.cardContent}>
@@ -225,7 +295,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
                   {formatCurrency(outstandingAmount)}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Quick Access Section - Each item in separate card */}
@@ -266,8 +336,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerIconBtn: {
-    padding: 8,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   hamburgerLine: {
     width: 20,

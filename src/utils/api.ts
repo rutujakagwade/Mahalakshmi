@@ -6,7 +6,12 @@
 // Configure base URL: change to your machine's LAN IP when testing on real Android/iOS device
 // e.g. 'http://192.168.1.100:8000/api' or 'http://10.0.2.2:8000/api' for Android emulator
 // export const API_BASE_URL = 'http://35.154.122.181/mahalaxmiEMbackend-/public/index.php/api';
-export const API_BASE_URL = 'http://10.147.238.128:8000/api';
+// export const API_BASE_URL = 'http://10.147.238.128:8000/api';
+
+// export const API_BASE_URL = 'http://35.154.122.181/mahalakshmi-api/public/index.php/api';
+// export const API_BASE_URL = 'http://10.0.2.2:8000/api'; // For Android Emulator
+export const API_BASE_URL = 'http://192.168.1.7:8000/api'; // For Physical Device on LAN
+
 
 
 
@@ -156,7 +161,12 @@ export const CustomerService = {
     return res.data;
   },
 
-  create: async (payload: { name: string; location?: string; phone?: string }) => {
+  getById: async (id: string) => {
+    const res = await apiRequest(`/customers/${id}`);
+    return res.data;
+  },
+
+  create: async (payload: { name: string; location?: string; phone?: string; notes?: string }) => {
     const res = await apiRequest('/customers', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -164,7 +174,7 @@ export const CustomerService = {
     return res.data;
   },
 
-  update: async (id: string, payload: { name: string; location?: string; phone?: string }) => {
+  update: async (id: string, payload: { name: string; location?: string; phone?: string; notes?: string }) => {
     const res = await apiRequest(`/customers/${id}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
@@ -257,6 +267,28 @@ export const DailyLedgerService = {
     return res.data;
   },
 
+  update: async (
+    id: string | number,
+    payload: Partial<{
+      entry_date: string;
+      type: 'earnings' | 'expense';
+      description: string;
+      amount: number;
+      payment_type: 'cash' | 'online' | 'credit';
+      notes: string;
+    }>
+  ) => {
+    const res = await apiRequest(`/daily-entries/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    return res.data;
+  },
+
+  delete: async (id: string | number) => {
+    return apiRequest(`/daily-entries/${id}`, { method: 'DELETE' });
+  },
+
   getSummary: async (date?: string) => {
     const res = await apiRequest('/daily-entries/summary', {
       params: date ? { date } : undefined,
@@ -267,11 +299,13 @@ export const DailyLedgerService = {
 
 export const MachineEntryService = {
   /**
-   * Get machine entries with flexible date filtering:
+   * Get machine entries with flexible filtering:
    *   - { date }              → single-day (backward compat)
    *   - { from_date, to_date } → date range (multi-day)
    *   - { machine_id }        → filter by machine
    *   - { customer_id }       → filter by customer
+   *   - { status }            → filter by work status ('ongoing' | 'completed')
+   *   - { q }                 → search term
    */
   getAll: async (filters?: {
     date?: string;
@@ -279,15 +313,15 @@ export const MachineEntryService = {
     to_date?: string;
     machine_id?: string;
     customer_id?: string;
+    status?: 'ongoing' | 'completed';
+    q?: string;
   }) => {
     const res = await apiRequest('/machine-entries', { params: filters });
     return res.data;
   },
 
   /**
-   * Create a machine entry.
-   * Pass to_date for multi-day / date-range work (पर्यंत तारीख).
-   * If omitted, entry is treated as a single-day record.
+   * Create a machine / work entry.
    */
   create: async (payload: {
     machine_id: string | number;
@@ -296,10 +330,17 @@ export const MachineEntryService = {
     to_date?: string | null;     // पर्यंत तारीख (to date) — null for single day
     location?: string;
     work_description?: string;
+    work_type?: 'foot' | 'hours' | 'theka';
+    rate?: number;
+    quantity?: number;
     hours_or_trips?: number;
     hours_unit?: 'hours' | 'trips';
     amount: number;
+    advance_amount?: number;
+    balance_amount?: number;
     payment_type?: 'cash' | 'online' | 'credit';
+    status?: 'ongoing' | 'completed';
+    notes?: string;
   }) => {
     const res = await apiRequest('/machine-entries', {
       method: 'POST',
@@ -315,10 +356,17 @@ export const MachineEntryService = {
     to_date?: string | null;
     location?: string;
     work_description?: string;
+    work_type?: 'foot' | 'hours' | 'theka';
+    rate?: number;
+    quantity?: number;
     hours_or_trips?: number;
     hours_unit?: 'hours' | 'trips';
     amount?: number;
+    advance_amount?: number;
+    balance_amount?: number;
     payment_type?: 'cash' | 'online' | 'credit';
+    status?: 'ongoing' | 'completed';
+    notes?: string;
   }) => {
     const res = await apiRequest(`/machine-entries/${id}`, {
       method: 'PUT',
@@ -385,5 +433,62 @@ export const NotificationService = {
     });
   },
 };
+
+export const LoanService = {
+  getAll: async (status?: string) => {
+    const res = await apiRequest('/loans', {
+      params: status ? { status } : undefined,
+    });
+    return res.data;
+  },
+
+  getDashboardSummary: async () => {
+    const res = await apiRequest('/loans/summary/dashboard');
+    return res.data;
+  },
+
+  getById: async (id: string | number) => {
+    const res = await apiRequest(`/loans/${id}`);
+    return res.data;
+  },
+
+  create: async (data: any) => {
+    const res = await apiRequest('/loans', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+
+  update: async (id: string | number, data: any) => {
+    const res = await apiRequest(`/loans/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+
+  delete: async (id: string | number) => {
+    return apiRequest(`/loans/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  payInstallment: async (loanId: string | number, installmentId: string | number, payload: any) => {
+    const res = await apiRequest(`/loans/${loanId}/installments/${installmentId}/pay`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res;
+  },
+
+  unpayInstallment: async (loanId: string | number, installmentId: string | number) => {
+    const res = await apiRequest(`/loans/${loanId}/installments/${installmentId}/unpay`, {
+      method: 'POST',
+    });
+    return res;
+  },
+};
+
 
 

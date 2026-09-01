@@ -31,7 +31,9 @@ import {
   TrendingUp,
   CheckCircle2,
   AlertCircle,
+  Share2,
 } from 'lucide-react-native';
+import { sendCustomerUdharOnWhatsApp, sendWorkBalanceOnWhatsApp } from '../../utils/whatsapp';
 
 interface CustomerDetailScreenProps {
   customer: Customer;
@@ -227,15 +229,34 @@ export const CustomerDetailScreen: React.FC<CustomerDetailScreenProps> = ({ cust
             </View>
           </View>
 
-          {/* Action Button: Add Payment */}
-          <TouchableOpacity
-            style={styles.addPaymentBtn}
-            onPress={handleOpenPaymentModal}
-            activeOpacity={0.8}
-          >
-            <PlusCircle size={18} color={colors.white} />
-            <Text style={styles.addPaymentBtnText}>रक्कम जमा करा (+)</Text>
-          </TouchableOpacity>
+          {/* Action Buttons: Add Payment & WhatsApp */}
+          <View style={styles.headerActionRow}>
+            <TouchableOpacity
+              style={styles.addPaymentBtn}
+              onPress={handleOpenPaymentModal}
+              activeOpacity={0.8}
+            >
+              <PlusCircle size={17} color={colors.white} />
+              <Text style={styles.addPaymentBtnText}>रक्कम जमा (+)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.whatsAppHeaderBtn}
+              onPress={() => sendCustomerUdharOnWhatsApp({
+                customerName: currentCustomer.name,
+                phone: currentCustomer.phone,
+                location: currentCustomer.location,
+                totalWork,
+                totalPaid,
+                udhariBalance,
+                expectedPaymentDate: currentCustomer.expectedPaymentDate,
+              })}
+              activeOpacity={0.8}
+            >
+              <Share2 size={16} color={colors.white} />
+              <Text style={styles.whatsAppHeaderBtnText}>WhatsApp</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Udhar Financial Overview Cards */}
@@ -265,29 +286,54 @@ export const CustomerDetailScreen: React.FC<CustomerDetailScreenProps> = ({ cust
 
         {/* Promised Payment Date Banner (Only visible when Udhar balance > 0) */}
         {udhariBalance > 0 ? (
-          <View style={styles.promisedDateCard}>
-            <View style={styles.promisedDateLeft}>
-              <Calendar size={18} color={colors.primary} />
-              <View style={styles.promisedDateInfo}>
-                <Text style={styles.promisedDateLabel}>पेमेंट देण्याची आपक्षित तारीख (Promised Date):</Text>
-                <Text style={styles.promisedDateValue}>
-                  {currentCustomer.expectedPaymentDate
-                    ? currentCustomer.expectedPaymentDate
-                    : 'तारीख ठरलेली नाही'}
-                </Text>
+          <>
+            <View style={styles.promisedDateCard}>
+              <View style={styles.promisedDateLeft}>
+                <Calendar size={18} color={colors.primary} />
+                <View style={styles.promisedDateInfo}>
+                  <Text style={styles.promisedDateLabel}>पेमेंट देण्याची आपक्षित तारीख (Promised Date):</Text>
+                  <Text style={styles.promisedDateValue}>
+                    {currentCustomer.expectedPaymentDate
+                      ? currentCustomer.expectedPaymentDate
+                      : 'तारीख ठरलेली नाही'}
+                  </Text>
+                </View>
               </View>
+
+              <TouchableOpacity
+                style={styles.setPromisedDateBtn}
+                onPress={handleOpenExpectedDateModal}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.setPromisedDateBtnText}>
+                  {currentCustomer.expectedPaymentDate ? 'तारीख बदला' : '+ तारीख ठेवा'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
+            {/* Prominent WhatsApp Reminder Banner */}
             <TouchableOpacity
-              style={styles.setPromisedDateBtn}
-              onPress={handleOpenExpectedDateModal}
-              activeOpacity={0.8}
+              style={styles.whatsAppReminderBanner}
+              onPress={() => sendCustomerUdharOnWhatsApp({
+                customerName: currentCustomer.name,
+                phone: currentCustomer.phone,
+                location: currentCustomer.location,
+                totalWork,
+                totalPaid,
+                udhariBalance,
+                expectedPaymentDate: currentCustomer.expectedPaymentDate,
+              })}
+              activeOpacity={0.85}
             >
-              <Text style={styles.setPromisedDateBtnText}>
-                {currentCustomer.expectedPaymentDate ? 'तारीख बदला' : '+ तारीख ठेवा'}
-              </Text>
+              <View style={styles.whatsAppIconCircle}>
+                <Share2 size={16} color="#16A34A" />
+              </View>
+              <View style={styles.whatsAppBannerTextCol}>
+                <Text style={styles.whatsAppBannerTitle}>WhatsApp वर उधारी हिशोब पाठवा</Text>
+                <Text style={styles.whatsAppBannerSub}>ग्राहकाला थेट WhatsApp वर एकूण काम, जमा व बाकी रकमेचा मेसेज पाठवा</Text>
+              </View>
             </TouchableOpacity>
-          </View>
+          </>
         ) : null}
 
 
@@ -616,7 +662,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textTertiary,
   },
+  headerActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   addPaymentBtn: {
+    flex: 1,
     backgroundColor: colors.primary,
     borderRadius: radii.lg,
     paddingVertical: 12,
@@ -627,8 +679,56 @@ const styles = StyleSheet.create({
   },
   addPaymentBtnText: {
     color: colors.white,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
+  },
+  whatsAppHeaderBtn: {
+    backgroundColor: '#16A34A',
+    borderRadius: radii.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  whatsAppHeaderBtnText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  whatsAppReminderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1.5,
+    borderColor: '#86EFAC',
+    borderRadius: radii.lg,
+    padding: 12,
+    gap: 12,
+    ...shadows.xs,
+  },
+  whatsAppIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  whatsAppBannerTextCol: {
+    flex: 1,
+  },
+  whatsAppBannerTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#15803D',
+  },
+  whatsAppBannerSub: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#166534',
+    marginTop: 2,
   },
   summaryGrid: {
     flexDirection: 'row',

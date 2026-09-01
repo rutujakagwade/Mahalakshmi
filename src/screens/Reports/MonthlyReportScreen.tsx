@@ -106,6 +106,9 @@ export const MonthlyReportScreen: React.FC<MonthlyReportScreenProps> = ({ onBack
   const [showMachineDetailModal, setShowMachineDetailModal] = useState<boolean>(false);
   const [machineDetailLoading, setMachineDetailLoading] = useState<boolean>(false);
   const [machineEntriesList, setMachineEntriesList] = useState<any[]>([]);
+  const [machineExpenseList, setMachineExpenseList] = useState<any[]>([]);
+  // machineExpenseMap: machineName (lowercase) -> total expense amount
+  const [machineExpenseMap, setMachineExpenseMap] = useState<Record<string, number>>({});
 
   const [y, m] = selectedMonthVal.split('-').map(Number);
   const daysInMonth = new Date(y, m, 0).getDate() || 31;
@@ -113,10 +116,35 @@ export const MonthlyReportScreen: React.FC<MonthlyReportScreenProps> = ({ onBack
   const fetchMonthly = async (mVal: string) => {
     const [year, month] = mVal.split('-').map(Number);
     const totalDays = new Date(year, month, 0).getDate() || 31;
+    const mStr = String(month).padStart(2, '0');
 
     try {
       setLoading(true);
-      const data = await ReportService.getMonthlyReport(year, month);
+
+      // Fetch monthly report & machine-wise expenses in parallel
+      const [data, ledgerRes] = await Promise.all([
+        ReportService.getMonthlyReport(year, month),
+        DailyLedgerService.getAll({ type: 'expense' }),
+      ]);
+
+      // Build machine-wise expense map from ledger entries tagged [machine: ...]
+      const rawLedger = Array.isArray(ledgerRes) ? ledgerRes : Array.isArray(ledgerRes?.data) ? ledgerRes.data : [];
+      const expMap: Record<string, number> = {};
+      const expItems: any[] = [];
+      rawLedger.forEach((item: any) => {
+        const rawDate = item.date || item.entry_date || '';
+        if (!String(rawDate).startsWith(`${year}-${mStr}`)) return;
+        const notes = (item.notes || '').toLowerCase();
+        const desc = (item.description || '').toLowerCase();
+        const machineMatch = (item.notes || item.description || '').match(/\[machine:\s*([^\]]+)\]/i);
+        if (machineMatch) {
+          const mName = machineMatch[1].trim().toLowerCase();
+          expMap[mName] = (expMap[mName] || 0) + (Number(item.amount) || 0);
+          expItems.push({ ...item, _machineName: machineMatch[1].trim() });
+        }
+      });
+      setMachineExpenseMap(expMap);
+      setMachineExpenseList(expItems);
 
       let chartData: DailyChartItem[] = [];
       if (Array.isArray(data?.dailyChart) && data.dailyChart.length > 0) {
@@ -668,15 +696,17 @@ export const MonthlyReportScreen: React.FC<MonthlyReportScreenProps> = ({ onBack
               <View style={tw`flex flex-row justify-between items-center px-3.5 py-2.5 bg-gray-50 border-b border-gray-200`}>
                 <View style={tw`flex flex-row items-center gap-1.5`}>
                   <Truck size={14} color={colors.primary} />
-                  <Text style={tw`text-xs font-bold text-[${colors.textPrimary}]`}>मशीननुसार कमाई अहवाल</Text>
+                  <Text style={tw`text-xs font-bold text-[${colors.textPrimary}]`}>मशीननुसार कमाई व खर्च</Text>
                 </View>
                 <Text style={tw`text-[10px] font-semibold text-[${colors.textTertiary}]`}>तपशील पाहण्यासाठी टॅप करा ›</Text>
               </View>
 
+              {/* Table Header */}
               <View style={styles.tableHeader}>
-                <Text style={[styles.tableHeaderCell, { textAlign: 'left', flex: 1.3 }]}>मशीन नाव</Text>
-                <Text style={[styles.tableHeaderCell, { textAlign: 'center', flex: 1 }]}>तास / फेऱ्या</Text>
+                <Text style={[styles.tableHeaderCell, { textAlign: 'left', flex: 1.4 }]}>मशीन नाव</Text>
                 <Text style={[styles.tableHeaderCell, { textAlign: 'right', flex: 1 }]}>कमाई</Text>
+                <Text style={[styles.tableHeaderCell, { textAlign: 'right', flex: 1, color: colors.expense }]}>खर्च</Text>
+                <Text style={[styles.tableHeaderCell, { textAlign: 'right', flex: 1, color: '#7C3AED' }]}>नफा</Text>
               </View>
 
               {machineSummary.length === 0 ? (
@@ -684,40 +714,64 @@ export const MonthlyReportScreen: React.FC<MonthlyReportScreenProps> = ({ onBack
                   या महिन्यासाठी मशीन नोंद उपलब्ध नाही
                 </Text>
               ) : (
-                machineSummary.map((mItem, index) => (
-                  <TouchableOpacity
-                    key={mItem.id || index}
-                    activeOpacity={0.7}
-                    onPress={() => handleOpenMachineDetail(mItem)}
-                    style={[
-                      styles.tableRow,
-                      index % 2 === 0 ? { backgroundColor: colors.surfaceSecondary } : { backgroundColor: colors.white },
-                    ]}
-                  >
-                    <View style={[tw`flex flex-row items-center gap-1`, { flex: 1.3 }]}>
-                      <Text style={[styles.tableCellText, { textAlign: 'left', fontWeight: '700' }]}>
-                        {mItem.machineName}
+                machineSummary.map((mItem, index) => {
+                  const mKey = (mItem.machineName || '').toLowerCase();
+                  const mExp = machineExpenseMap[mKey] || 0;
+                  const mEarn = Number(mItem.totalEarnings) || 0;
+                  const mProfit = mEarn - mExp;
+                  return (
+                    <TouchableOpacity
+                      key={mItem.id || index}
+                      activeOpacity={0.7}
+                      onPress={() => handleOpenMachineDetail(mItem)}
+                      style={[
+                        styles.tableRow,
+                        index % 2 === 0 ? { backgroundColor: colors.surfaceSecondary } : { backgroundColor: colors.white },
+                      ]}
+                    >
+                      <View style={[tw`flex flex-row items-center gap-1`, { flex: 1.4 }]}>
+                        <Text style={[styles.tableCellText, { textAlign: 'left', fontWeight: '700' }]} numberOfLines={1}>
+                          {mItem.machineName}
+                        </Text>
+                        <ChevronRight size={11} color={colors.textTertiary} />
+                      </View>
+                      <Text style={[styles.tableCellText, { textAlign: 'right', flex: 1, fontWeight: '700', color: colors.earnings }]}>
+                        {formatCurrency(mEarn)}
                       </Text>
-                      <ChevronRight size={12} color={colors.textTertiary} />
-                    </View>
-                    <Text style={[styles.tableCellText, { textAlign: 'center', flex: 1, color: colors.textTertiary }]}>
-                      {mItem.hoursOrTrips || '0 तास'}
-                    </Text>
-                    <Text style={[styles.tableCellText, { textAlign: 'right', flex: 1, fontWeight: '700', color: colors.earnings }]}>
-                      {formatCurrency(Number(mItem.totalEarnings) || 0)}
-                    </Text>
-                  </TouchableOpacity>
-                ))
+                      <Text style={[styles.tableCellText, { textAlign: 'right', flex: 1, fontWeight: '700', color: colors.expense }]}>
+                        {mExp > 0 ? formatCurrency(mExp) : '—'}
+                      </Text>
+                      <Text style={[styles.tableCellText, { textAlign: 'right', flex: 1, fontWeight: '800', color: mProfit >= 0 ? '#059669' : '#DC2626' }]}>
+                        {formatCurrency(mProfit)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
               )}
 
               {/* Table Total Footer */}
-              <View style={styles.tableTotalRow}>
-                <Text style={[styles.tableTotalText, { textAlign: 'left', flex: 1.3 }]}>एकूण</Text>
-                <Text style={[styles.tableTotalText, { textAlign: 'center', flex: 1 }]}></Text>
-                <Text style={[styles.tableTotalText, { textAlign: 'right', flex: 1, color: colors.earnings }]}>
-                  {formatCurrency(totalMachineEarnings || monthlySummary.totalEarnings)}
-                </Text>
-              </View>
+              {machineSummary.length > 0 && (() => {
+                const totalExp = machineSummary.reduce((acc, mItem) => {
+                  const mKey = (mItem.machineName || '').toLowerCase();
+                  return acc + (machineExpenseMap[mKey] || 0);
+                }, 0);
+                const totalEarn = totalMachineEarnings || monthlySummary.totalEarnings;
+                const totalProfit = totalEarn - totalExp;
+                return (
+                  <View style={styles.tableTotalRow}>
+                    <Text style={[styles.tableTotalText, { textAlign: 'left', flex: 1.4 }]}>एकूण</Text>
+                    <Text style={[styles.tableTotalText, { textAlign: 'right', flex: 1, color: colors.earnings }]}>
+                      {formatCurrency(totalEarn)}
+                    </Text>
+                    <Text style={[styles.tableTotalText, { textAlign: 'right', flex: 1, color: colors.expense }]}>
+                      {totalExp > 0 ? formatCurrency(totalExp) : '—'}
+                    </Text>
+                    <Text style={[styles.tableTotalText, { textAlign: 'right', flex: 1, color: totalProfit >= 0 ? '#059669' : '#DC2626' }]}>
+                      {formatCurrency(totalProfit)}
+                    </Text>
+                  </View>
+                );
+              })()}
             </View>
           </>
         )}
@@ -1165,29 +1219,35 @@ export const MonthlyReportScreen: React.FC<MonthlyReportScreenProps> = ({ onBack
             </View>
 
             {/* Machine Summary Highlight Card */}
-            <View style={[styles.earningsHeroBanner, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', alignItems: 'stretch' }]}>
-              <View style={tw`flex flex-row justify-between items-center w-full`}>
-                <View style={tw`flex-1 pr-3`}>
-                  <Text style={[styles.earningsHeroLabel, { color: '#1D4ED8' }]}>
-                    मशीन एकूण मासिक कमाई
-                  </Text>
-                  <Text style={[styles.earningsHeroAmount, { color: '#1E40AF' }]}>
-                    {formatCurrency(
-                      machineEntriesList.reduce((acc, it) => acc + (Number(it.amount) || 0), 0) ||
-                      Number(selectedMachineReport?.totalEarnings) || 0
-                    )}
+            {(() => {
+              const mKey = (selectedMachineReport?.machineName || '').toLowerCase();
+              const mExp = machineExpenseMap[mKey] || 0;
+              const mEarn = machineEntriesList.reduce((acc, it) => acc + (Number(it.amount) || 0), 0) || Number(selectedMachineReport?.totalEarnings) || 0;
+              const mProfit = mEarn - mExp;
+              return (
+                <View style={[styles.earningsHeroBanner, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', alignItems: 'stretch' }]}>
+                  <View style={tw`flex flex-row justify-between items-center w-full`}>
+                    <View style={tw`flex-1 pr-2`}>
+                      <Text style={[styles.earningsHeroLabel, { color: '#1D4ED8' }]}>मशीन मासिक कमाई</Text>
+                      <Text style={[styles.earningsHeroAmount, { color: '#1E40AF' }]}>{formatCurrency(mEarn)}</Text>
+                    </View>
+                    <View style={tw`items-center flex-1`}>
+                      <Text style={tw`text-[10px] font-semibold text-red-700`}>खर्च</Text>
+                      <Text style={tw`text-sm font-extrabold text-red-600`}>{mExp > 0 ? formatCurrency(mExp) : '—'}</Text>
+                    </View>
+                    <View style={tw`items-end flex-1`}>
+                      <Text style={tw`text-[10px] font-semibold text-purple-700`}>निव्वळ नफा</Text>
+                      <Text style={[tw`text-sm font-extrabold`, { color: mProfit >= 0 ? '#059669' : '#DC2626' }]}>
+                        {formatCurrency(mProfit)}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={tw`text-[10px] font-semibold text-blue-500 mt-1`}>
+                    एकूण {machineEntriesList.length} नोंदी • {selectedMachineReport?.hoursOrTrips || '—'}
                   </Text>
                 </View>
-                <View style={tw`items-end`}>
-                  <Text style={tw`text-xs font-bold text-blue-900`}>
-                    एकूण: {selectedMachineReport?.hoursOrTrips || '0 तास'}
-                  </Text>
-                  <Text style={tw`text-[11px] font-semibold text-blue-600 mt-0.5`}>
-                    एकूण {machineEntriesList.length} नोंदी
-                  </Text>
-                </View>
-              </View>
-            </View>
+              );
+            })()}
 
             <Text style={tw`text-xs font-bold text-gray-700 px-1 pt-1`}>
               कामाचा सविस्तर तपशील ({machineEntriesList.length}):
@@ -1289,20 +1349,70 @@ export const MonthlyReportScreen: React.FC<MonthlyReportScreenProps> = ({ onBack
                     );
                   })
                 )}
+
+                {/* Machine-wise Expenses Section */}
+                {(() => {
+                  const mKey = (selectedMachineReport?.machineName || '').toLowerCase();
+                  const relatedExp = machineExpenseList.filter(
+                    (e: any) => (e._machineName || '').toLowerCase() === mKey
+                  );
+                  if (relatedExp.length === 0) return null;
+                  return (
+                    <View style={tw`mt-3`}>
+                      <Text style={tw`text-xs font-bold text-red-700 px-1 pb-1.5`}>
+                        मशीन खर्च ({relatedExp.length}):
+                      </Text>
+                      {relatedExp.map((exp: any, ei: number) => (
+                        <View
+                          key={exp.id || ei}
+                          style={[tw`flex flex-row justify-between items-center px-3 py-2 rounded-xl mb-1.5`, { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECDD3' }]}
+                        >
+                          <View style={tw`flex-1 pr-2`}>
+                            <Text style={tw`text-[12px] font-semibold text-red-800`} numberOfLines={1}>
+                              {exp.description || 'खर्च'}
+                            </Text>
+                            <Text style={tw`text-[10px] font-medium text-red-500`}>
+                              {exp.date || exp.entry_date || ''}
+                              {exp.notes ? ` • ${String(exp.notes).replace(/\[machine:[^\]]+\]/gi, '').trim()}` : ''}
+                            </Text>
+                          </View>
+                          <Text style={tw`text-sm font-extrabold text-red-600`}>
+                            -{formatCurrency(Number(exp.amount) || 0)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  );
+                })()}
               </ScrollView>
             )}
 
-            {/* Modal Tally Verification Footer */}
+            {/* Modal Tally Footer - Kamai / Kharch / Nafa */}
             <View style={styles.modalFooter}>
-              <View style={tw`flex flex-row justify-between items-center bg-blue-50 p-2.5 rounded-xl mb-2 border border-blue-200`}>
-                <Text style={tw`text-xs font-bold text-blue-900`}>मशीन एकूण मासिक बेरीज (Tally):</Text>
-                <Text style={tw`text-sm font-extrabold text-blue-700`}>
-                  {formatCurrency(
-                    machineEntriesList.reduce((acc, it) => acc + (Number(it.amount) || 0), 0) ||
-                    Number(selectedMachineReport?.totalEarnings) || 0
-                  )}
-                </Text>
-              </View>
+              {(() => {
+                const mKey = (selectedMachineReport?.machineName || '').toLowerCase();
+                const mExp = machineExpenseMap[mKey] || 0;
+                const mEarn = machineEntriesList.reduce((acc, it) => acc + (Number(it.amount) || 0), 0) || Number(selectedMachineReport?.totalEarnings) || 0;
+                const mProfit = mEarn - mExp;
+                return (
+                  <View style={tw`gap-1.5 mb-2`}>
+                    <View style={tw`flex flex-row justify-between items-center bg-green-50 px-3 py-2 rounded-xl border border-green-200`}>
+                      <Text style={tw`text-xs font-bold text-green-900`}>एकूण कमाई:</Text>
+                      <Text style={tw`text-sm font-extrabold text-green-700`}>{formatCurrency(mEarn)}</Text>
+                    </View>
+                    {mExp > 0 && (
+                      <View style={tw`flex flex-row justify-between items-center bg-red-50 px-3 py-2 rounded-xl border border-red-200`}>
+                        <Text style={tw`text-xs font-bold text-red-900`}>एकूण खर्च:</Text>
+                        <Text style={tw`text-sm font-extrabold text-red-600`}>-{formatCurrency(mExp)}</Text>
+                      </View>
+                    )}
+                    <View style={[tw`flex flex-row justify-between items-center px-3 py-2 rounded-xl border`, { backgroundColor: mProfit >= 0 ? '#F0FDF4' : '#FEF2F2', borderColor: mProfit >= 0 ? '#BBF7D0' : '#FECDD3' }]}>
+                      <Text style={tw`text-xs font-bold text-gray-800`}>निव्वळ नफा (Tally):</Text>
+                      <Text style={[tw`text-sm font-extrabold`, { color: mProfit >= 0 ? '#059669' : '#DC2626' }]}>{formatCurrency(mProfit)}</Text>
+                    </View>
+                  </View>
+                );
+              })()}
               <TouchableOpacity
                 onPress={() => setShowMachineDetailModal(false)}
                 style={styles.modalCloseButton}

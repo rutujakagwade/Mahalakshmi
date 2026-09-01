@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import tw from 'twrnc';
-import { ArrowLeft, Menu, Bell, Plus, Calendar, Settings, MoreVertical } from 'lucide-react-native';
+import { ArrowLeft, Menu, Bell, Plus, Calendar, Settings, MoreVertical, Trash2 } from 'lucide-react-native';
 import { colors } from '../theme';
 
 interface AppHeaderProps {
@@ -11,7 +11,7 @@ interface AppHeaderProps {
   onBackPress?: () => void;
   showMenu?: boolean;
   onMenuPress?: () => void;
-  rightActionIcon?: 'bell' | 'plus' | 'calendar' | 'settings' | 'more' | 'none';
+  rightActionIcon?: 'bell' | 'plus' | 'calendar' | 'settings' | 'more' | 'trash' | 'none';
   unreadBadgeCount?: number;
   onRightActionPress?: () => void;
   // Second right icon (e.g. bell alongside calendar)
@@ -126,6 +126,16 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             activeOpacity={0.7}
           >
             <MoreVertical size={18} color="white" />
+          </TouchableOpacity>
+        )}
+        {rightActionIcon === 'trash' && (
+          <TouchableOpacity
+            onPress={onRightActionPress}
+            style={tw`p-2 rounded-xl bg-white/10`}
+            accessibilityLabel="Delete"
+            activeOpacity={0.7}
+          >
+            <Trash2 size={18} color="white" />
           </TouchableOpacity>
         )}
 

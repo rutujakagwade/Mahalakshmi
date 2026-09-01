@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Pencil, Trash2, MapPin, Phone, ChevronRight } from 'lucide-react-native';
+import { Pencil, Trash2, MapPin, Phone, ChevronRight, Share2 } from 'lucide-react-native';
 import { Customer } from '../types/customer';
 import { colors, radii, shadows } from '../theme';
+import { sendCustomerUdharOnWhatsApp } from '../utils/whatsapp';
 
 interface CustomerCardProps {
   customer: Customer;
@@ -90,6 +91,28 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
 
         {/* Right Actions */}
         <View style={styles.rightActions}>
+          {isPending ? (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                sendCustomerUdharOnWhatsApp({
+                  customerName: customer.name,
+                  phone: customer.phone,
+                  location: customer.location,
+                  totalWork: customer.totalWork,
+                  totalPaid: customer.totalPaid,
+                  udhariBalance: udhari,
+                  expectedPaymentDate: customer.expectedPaymentDate,
+                });
+              }}
+              style={[styles.actionBtn, styles.whatsAppBtnBg]}
+              accessibilityLabel="Share on WhatsApp"
+              activeOpacity={0.7}
+            >
+              <Share2 size={14} color="#15803D" />
+            </TouchableOpacity>
+          ) : null}
+
           <TouchableOpacity
             onPress={(e) => {
               e.stopPropagation();
@@ -217,6 +240,11 @@ const styles = StyleSheet.create({
   },
   deleteBtnBg: {
     backgroundColor: colors.errorBg,
+  },
+  whatsAppBtnBg: {
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
   },
   chevron: {
     marginLeft: 2,

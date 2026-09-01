@@ -21,8 +21,10 @@ import {
   ChevronRight,
   AlertCircle,
   TrendingDown,
+  Share2,
 } from 'lucide-react-native';
 import { CustomerDetailScreen } from '../Customer/CustomerDetailScreen';
+import { sendCustomerUdharOnWhatsApp } from '../../utils/whatsapp';
 
 interface UdharReportScreenProps {
   onBack: () => void;
@@ -251,6 +253,29 @@ export const UdharReportScreen: React.FC<UdharReportScreenProps> = ({ onBack }) 
                       </Text>
                     </View>
                   ) : null}
+
+                  {/* Send on WhatsApp Button */}
+                  {isPending ? (
+                    <TouchableOpacity
+                      style={styles.whatsAppCardBtn}
+                      activeOpacity={0.85}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        sendCustomerUdharOnWhatsApp({
+                          customerName: c.name,
+                          phone: c.phone,
+                          location: c.location,
+                          totalWork: c.totalWork,
+                          totalPaid: c.totalPaid,
+                          udhariBalance: udhari,
+                          expectedPaymentDate: c.expectedPaymentDate,
+                        });
+                      }}
+                    >
+                      <Share2 size={13} color="#FFFFFF" />
+                      <Text style={styles.whatsAppCardBtnText}>WhatsApp वर उधारी पाठवा</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </TouchableOpacity>
               );
             })}
@@ -468,6 +493,22 @@ const styles = StyleSheet.create({
   promisedDateVal: {
     fontWeight: '700',
     color: '#B45309',
+  },
+  whatsAppCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#16A34A',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: radii.md,
+    marginTop: 4,
+  },
+  whatsAppCardBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   emptyState: {
     paddingVertical: 48,

@@ -1,4 +1,4 @@
-import tw from 'twrnc';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,28 +7,39 @@ import {
   StyleSheet,
   Modal,
   ActivityIndicator,
+  TextInput,
+  Alert,
 } from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { AppHeader } from '../../components/AppHeader';
-import { AppInput } from '../../components/AppInput';
-import { AppDropdown } from '../../components/AppDropdown';
-import { AppButton } from '../../components/AppButton';
-import { AppCard } from '../../components/AppCard';
-import {
-  TrendingDown,
-  X,
-  Wallet,
-  CheckCircle,
-  IndianRupee,
-} from 'lucide-react-native';
-import { formatCurrency } from '../../utils/currency';
+import tw from 'twrnc';
 import { AppDatePicker } from '../../components/AppDatePicker';
 import { getTodayFormatted } from '../../utils/date';
-import { DailyLedgerService } from '../../utils/api';
+import { formatCurrency } from '../../utils/currency';
+import { DailyLedgerService, MachineService } from '../../utils/api';
 import { colors } from '../../theme';
+import {
+  FileText,
+  IndianRupee,
+  Calendar as CalendarIcon,
+  StickyNote,
+  CheckCircle,
+  ArrowLeft,
+  CreditCard,
+  TrendingDown,
+  X,
+  Trash2,
+  Wrench,
+  Home,
+  ChevronDown,
+  Truck,
+} from 'lucide-react-native';
 
-interface KharchEntryScreenProps {
-  onBack: () => void;
+// ─── Types ──────────────────────────────────────────────────────────────────
+type KharchType = 'machine' | 'personal';
+
+interface MachineItem {
+  id: string | number;
+  name: string;
+  model_number?: string;
 }
 
 interface ExpenseDetailItem {
@@ -40,44 +51,124 @@ interface ExpenseDetailItem {
   notes?: string;
 }
 
+interface KharchEntryScreenProps {
+  onBack: () => void;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
 export const KharchEntryScreen: React.FC<KharchEntryScreenProps> = ({ onBack }) => {
+  // Kharch type tabs
+  const [kharchType, setKharchType] = useState<KharchType>('machine');
+
+  // Machine list for picker
+  const [machines, setMachines] = useState<MachineItem[]>([]);
+  const [machinesLoading, setMachinesLoading] = useState(false);
+  const [selectedMachine, setSelectedMachine] = useState<MachineItem | null>(null);
+  const [showMachinePicker, setShowMachinePicker] = useState(false);
+
+  // Form fields
   const [date, setDate] = useState<string>(getTodayFormatted());
   const [kharchDescription, setKharchDescription] = useState('');
   const [kharchAmount, setKharchAmount] = useState('');
-  const [kharchPaymentType, setKharchPaymentType] = useState('रोख');
+  const [kharchPaymentType, setKharchPaymentType] = useState<'cash' | 'online' | 'credit'>('cash');
   const [kharchNotes, setKharchNotes] = useState('');
   const [kharchSaving, setKharchSaving] = useState(false);
   const [kharchSavedMsg, setKharchSavedMsg] = useState('');
 
-  const [summary, setSummary] = useState({ expense: 0 });
+  // Summary
+  const [summary, setSummary] = useState({ expense: 0, machineExpense: 0, personalExpense: 0 });
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'machine' | 'personal'>('all');
 
+  // Details modal
   const [showDetails, setShowDetails] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [expenseList, setExpenseList] = useState<ExpenseDetailItem[]>([]);
 
+  // Edit modal
+  const [editItemModalOpen, setEditItemModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<ExpenseDetailItem | null>(null);
+  const [editItemDesc, setEditItemDesc] = useState('');
+  const [editItemAmount, setEditItemAmount] = useState('');
+  const [editItemPayType, setEditItemPayType] = useState<'cash' | 'online' | 'credit'>('cash');
+  const [editItemNotes, setEditItemNotes] = useState('');
+  const [editItemSaving, setEditItemSaving] = useState(false);
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
   const getIsoDate = (dStr: string) => {
     const parts = dStr.split('/');
     return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : new Date().toISOString().split('T')[0];
   };
 
+  // ── Fetch machines ────────────────────────────────────────────────────────
+  const loadMachines = async () => {
+    setMachinesLoading(true);
+    try {
+      const data = await MachineService.getAll();
+      const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+      setMachines(list);
+    } catch {
+      setMachines([]);
+    } finally {
+      setMachinesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMachines();
+  }, []);
+
+  // Reset machine selection when switching to personal
+  useEffect(() => {
+    if (kharchType === 'personal') {
+      setSelectedMachine(null);
+    }
+  }, [kharchType]);
+
+  // ── Fetch summary ─────────────────────────────────────────────────────────
   const fetchDaySummary = async () => {
     setSummaryLoading(true);
     try {
       const isoDate = getIsoDate(date);
       const ledgerRes = await DailyLedgerService.getAll({ date: isoDate });
       const rawLedger = Array.isArray(ledgerRes) ? ledgerRes : Array.isArray(ledgerRes?.data) ? ledgerRes.data : [];
-      const ledgerExpense = rawLedger
+      let machineTotal = 0;
+      let personalTotal = 0;
+      rawLedger
         .filter((it: any) => it.type === 'expense')
-        .reduce((sum: number, it: any) => sum + (Number(it.amount) || 0), 0);
-      setSummary({ expense: ledgerExpense });
+        .forEach((it: any) => {
+          const amt = Number(it.amount) || 0;
+          const notes = (it.notes || '').toLowerCase();
+          const desc = (it.description || '').toLowerCase();
+          if (
+            notes.includes('[machine:') ||
+            desc.includes('[machine:') ||
+            desc.includes('मजुरी') ||
+            desc.includes('मजूर') ||
+            desc.includes('पगार') ||
+            desc.includes('labour') ||
+            desc.includes('ऑपरेटर') ||
+            desc.includes('ड्रायव्हर')
+          ) {
+            machineTotal += amt;
+          } else {
+            personalTotal += amt;
+          }
+        });
+      setSummary({ expense: machineTotal + personalTotal, machineExpense: machineTotal, personalExpense: personalTotal });
     } catch {
-      setSummary({ expense: 0 });
+      setSummary({ expense: 0, machineExpense: 0, personalExpense: 0 });
     } finally {
       setSummaryLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchDaySummary();
+    loadDetailEntries();
+  }, [date]);
+
+  // ── Load detail entries ───────────────────────────────────────────────────
   const loadDetailEntries = async () => {
     setModalLoading(true);
     const isoDate = getIsoDate(date);
@@ -89,19 +180,34 @@ export const KharchEntryScreen: React.FC<KharchEntryScreenProps> = ({ onBack }) 
       rawLedger
         .filter((it: any) => it.type === 'expense')
         .forEach((l: any) => {
-          let category = 'इतर खर्च';
+          // Detect machine tag in notes
+          let category = 'वैयक्तिक खर्च';
+          const notesStr = (l.notes || '').toLowerCase();
           const descLower = (l.description || '').toLowerCase();
-          if (descLower.includes('डिझेल') || descLower.includes('diesel') || descLower.includes('fuel')) {
+
+          if (
+            notesStr.includes('[machine:') ||
+            descLower.includes('[machine:') ||
+            descLower.includes('मजुरी') ||
+            descLower.includes('मजूर') ||
+            descLower.includes('पगार') ||
+            descLower.includes('labour') ||
+            descLower.includes('ऑपरेटर') ||
+            descLower.includes('ड्रायव्हर')
+          ) {
+            category = 'मशीन खर्च';
+          } else if (descLower.includes('डिझेल') || descLower.includes('diesel') || descLower.includes('fuel')) {
             category = 'इंधन (Fuel)';
-          } else if (descLower.includes('पगार') || descLower.includes('मजुरी') || descLower.includes('salary') || descLower.includes('bhatta')) {
+          } else if (descLower.includes('पगार') || descLower.includes('मजुरी') || descLower.includes('salary')) {
             category = 'मजुरी (Labour)';
           } else if (descLower.includes('सर्व्हिस') || descLower.includes('ऑइल') || descLower.includes('oil')) {
             category = 'सर्व्हिसिंग (Service)';
           } else if (descLower.includes('दुरुस्ती') || descLower.includes('repair') || descLower.includes('spares')) {
             category = 'दुरुस्ती (Repair)';
           }
+
           expItems.push({
-            id: `exp-${l.id}`,
+            id: l.id,
             description: l.description || 'खर्च नोंद',
             amount: Number(l.amount) || 0,
             paymentType: l.paymentType || l.payment_type || 'cash',
@@ -117,18 +223,75 @@ export const KharchEntryScreen: React.FC<KharchEntryScreenProps> = ({ onBack }) 
     }
   };
 
-  useEffect(() => {
-    fetchDaySummary();
-  }, [date]);
+  // ── Edit handlers ─────────────────────────────────────────────────────────
+  const handleOpenEditItem = (item: ExpenseDetailItem) => {
+    setEditingItem(item);
+    setEditItemDesc(item.description);
+    setEditItemAmount(String(item.amount));
+    setEditItemPayType((item.paymentType as any) || 'cash');
+    setEditItemNotes(item.notes || '');
+    setEditItemModalOpen(true);
+  };
 
+  const handleSaveEditItem = async () => {
+    if (!editingItem) return;
+    const numAmt = parseFloat(editItemAmount.replace(/,/g, '')) || 0;
+    if (numAmt <= 0) { Alert.alert('त्रुटी', 'कृपया योग्य रक्कम टाका.'); return; }
+    if (!editItemDesc.trim()) { Alert.alert('त्रुटी', 'कृपया वर्णन टाका.'); return; }
+
+    setEditItemSaving(true);
+    try {
+      await DailyLedgerService.update(editingItem.id, {
+        description: editItemDesc.trim(),
+        amount: numAmt,
+        payment_type: editItemPayType,
+        notes: editItemNotes.trim() || undefined,
+      });
+      setEditItemModalOpen(false);
+      setEditingItem(null);
+      await loadDetailEntries();
+      await fetchDaySummary();
+    } catch (err: any) {
+      Alert.alert('त्रुटी', err?.message || 'नोंद अपडेट करताना समस्या आली.');
+    } finally {
+      setEditItemSaving(false);
+    }
+  };
+
+  const handleDeleteItem = (item: ExpenseDetailItem) => {
+    Alert.alert('खर्च नोंद हटवा', 'तुम्हाला खरोखर ही खर्च नोंद हटवायची आहे का?', [
+      { text: 'नाही', style: 'cancel' },
+      {
+        text: 'होय, हटवा',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await DailyLedgerService.delete(item.id);
+            await loadDetailEntries();
+            await fetchDaySummary();
+          } catch {
+            Alert.alert('त्रुटी', 'नोंद हटवताना समस्या आली.');
+          }
+        },
+      },
+    ]);
+  };
+
+  // ── Save expense ──────────────────────────────────────────────────────────
   const handleSaveKharch = async () => {
     const numAmount = parseFloat(kharchAmount.replace(/,/g, '')) || 0;
-    if (numAmount <= 0) { alert('कृपया योग्य रक्कम टाका'); return; }
-    if (!kharchDescription.trim()) { alert('कृपया वर्णन टाका'); return; }
+    if (numAmount <= 0) { Alert.alert('त्रुटी', 'कृपया योग्य रक्कम टाका'); return; }
+    if (!kharchDescription.trim()) { Alert.alert('त्रुटी', 'कृपया वर्णन किंवा खर्चाचे नाव टाका'); return; }
+    if (kharchType === 'machine' && !selectedMachine) {
+      Alert.alert('त्रुटी', 'कृपया मशीन निवडा'); return;
+    }
 
-    const payTypeMap: Record<string, 'cash' | 'online' | 'credit'> = {
-      'रोख': 'cash', 'ऑनलाइन': 'online', 'उधारी': 'credit',
-    };
+    // Build notes: embed machine tag for machine kharch
+    let notesVal = kharchNotes.trim();
+    if (kharchType === 'machine' && selectedMachine) {
+      const machineTag = `[machine: ${selectedMachine.name}]`;
+      notesVal = notesVal ? `${machineTag} ${notesVal}` : machineTag;
+    }
 
     setKharchSaving(true);
     try {
@@ -137,18 +300,21 @@ export const KharchEntryScreen: React.FC<KharchEntryScreenProps> = ({ onBack }) 
         type: 'expense',
         description: kharchDescription.trim(),
         amount: numAmount,
-        payment_type: payTypeMap[kharchPaymentType] || 'cash',
-        notes: kharchNotes.trim() || undefined,
+        payment_type: kharchPaymentType,
+        notes: notesVal || undefined,
       });
+
       setKharchSavedMsg('खर्च नोंद यशस्वीरित्या सेव्ह झाली!');
       setKharchDescription('');
       setKharchAmount('');
       setKharchNotes('');
-      setKharchPaymentType('रोख');
+      setKharchPaymentType('cash');
+      if (kharchType === 'machine') setSelectedMachine(null);
       await fetchDaySummary();
+      await loadDetailEntries();
       setTimeout(() => setKharchSavedMsg(''), 3000);
     } catch {
-      alert('नोंद सेव्ह करताना त्रुटी आली.');
+      Alert.alert('त्रुटी', 'नोंद सेव्ह करताना त्रुटी आली. कृपया पुन्हा प्रयत्न करा.');
     } finally {
       setKharchSaving(false);
     }
@@ -156,111 +322,488 @@ export const KharchEntryScreen: React.FC<KharchEntryScreenProps> = ({ onBack }) 
 
   const expenseSum = expenseList.reduce((acc, it) => acc + it.amount, 0);
 
+  // ── Extract machine name from notes ───────────────────────────────────────
+  const extractMachineName = (notes?: string): string | null => {
+    if (!notes) return null;
+    const match = notes.match(/\[machine:\s*([^\]]+)\]/i);
+    return match ? match[1].trim() : null;
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <View style={tw`flex-1 w-full bg-[${colors.background}]`}>
-      <AppHeader
-        title="खर्च (जावक)"
-        showBack={true}
-        onBackPress={onBack}
-        rightActionIcon="calendar"
-        onRightActionPress={() => setDate(getTodayFormatted())}
-      />
+    <View style={styles.screen}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+          <ArrowLeft size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>खर्च नोंद (जावक)</Text>
+        <TouchableOpacity
+          style={styles.saveHeaderBtn}
+          onPress={handleSaveKharch}
+          disabled={kharchSaving}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.saveHeaderBtnText}>{kharchSaving ? '...' : 'जतन करा'}</Text>
+        </TouchableOpacity>
+      </View>
 
-      <ScrollView
-        style={tw`flex-1`}
-        contentContainerStyle={tw`p-4 max-w-lg mx-auto w-full gap-4 pb-12`}
-      >
-        <AppDatePicker label="दिनांक" value={date} onChange={setDate} />
-
-        {/* KHARCH FORM */}
-        <AppCard style={tw`gap-4 p-4`}>
-          <View style={styles.formHeader}>
-            <View style={styles.formHeaderIcon}>
-              <IndianRupee size={18} color="white" />
-            </View>
-            <Text style={tw`text-base font-bold text-white`}>खर्च नोंद टाका</Text>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Success Banner */}
+        {kharchSavedMsg ? (
+          <View style={styles.successBanner}>
+            <CheckCircle size={16} color="#DC2626" />
+            <Text style={styles.successText}>{kharchSavedMsg}</Text>
           </View>
+        ) : null}
 
-          {kharchSavedMsg ? (
-            <View style={styles.successBanner}>
-              <CheckCircle size={14} color="#DC2626" />
-              <Text style={tw`text-xs font-bold text-[#DC2626]`}>{kharchSavedMsg}</Text>
+        {/* ── Kharch Type Tabs ── */}
+        <View style={styles.typeSectionContainer}>
+          <Text style={styles.typeSectionLabel}>खर्च प्रकार निवडा</Text>
+          <View style={styles.typeTabsRow}>
+            {/* Machine Kharch Tab */}
+            <TouchableOpacity
+              style={[styles.typeTab, kharchType === 'machine' && styles.typeTabActiveMachine]}
+              onPress={() => setKharchType('machine')}
+              activeOpacity={0.8}
+            >
+              <Wrench size={18} color={kharchType === 'machine' ? 'white' : '#6B7280'} />
+              <Text style={[styles.typeTabText, kharchType === 'machine' && styles.typeTabTextActive]}>
+                मशीन खर्च
+              </Text>
+            </TouchableOpacity>
+
+            {/* Personal Kharch Tab */}
+            <TouchableOpacity
+              style={[styles.typeTab, kharchType === 'personal' && styles.typeTabActivePersonal]}
+              onPress={() => setKharchType('personal')}
+              activeOpacity={0.8}
+            >
+              <Home size={18} color={kharchType === 'personal' ? 'white' : '#6B7280'} />
+              <Text style={[styles.typeTabText, kharchType === 'personal' && styles.typeTabTextActive]}>
+                वैयक्तिक खर्च
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ── Machine Picker (only for Machine Kharch) ── */}
+        {kharchType === 'machine' && (
+          <View style={styles.machineSelectorCard}>
+            <View style={styles.machineSelectorHeader}>
+              <Truck size={16} color="#92400E" />
+              <Text style={styles.machineSelectorTitle}>
+                मशीन निवडा <Text style={styles.requiredStar}>*</Text>
+              </Text>
             </View>
-          ) : null}
 
-          <AppInput
-            label="वर्णन"
+            <TouchableOpacity
+              style={styles.machinePickerBtn}
+              onPress={() => setShowMachinePicker(true)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.machinePickerLeft}>
+                {selectedMachine ? (
+                  <>
+                    <View style={styles.machinePickerDot} />
+                    <View>
+                      <Text style={styles.machinePickerName}>{selectedMachine.name}</Text>
+                      {selectedMachine.model_number ? (
+                        <Text style={styles.machinePickerModel}>{selectedMachine.model_number}</Text>
+                      ) : null}
+                    </View>
+                  </>
+                ) : (
+                  <Text style={styles.machinePickerPlaceholder}>
+                    {machinesLoading ? 'मशीन लोड होत आहे...' : '-- मशीन निवडा --'}
+                  </Text>
+                )}
+              </View>
+              <ChevronDown size={18} color="#92400E" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── तारीख ── */}
+        <View style={styles.inputRow}>
+          <View style={styles.labelContainer}>
+            <CalendarIcon size={18} color="#78350F" />
+            <Text style={styles.labelText}>दिनांक <Text style={styles.requiredStar}>*</Text></Text>
+          </View>
+          <View style={styles.dateInputWrapper}>
+            <AppDatePicker label="" value={date} onChange={setDate} />
+          </View>
+        </View>
+
+        {/* ── वर्णन ── */}
+        <View style={styles.inputRow}>
+          <View style={styles.labelContainer}>
+            <FileText size={18} color="#78350F" />
+            <Text style={styles.labelText}>
+              {kharchType === 'machine' ? 'खर्चाचे कारण' : 'वर्णन / खर्च'}
+              {' '}<Text style={styles.requiredStar}>*</Text>
+            </Text>
+          </View>
+          <TextInput
+            style={styles.textInputBox}
             value={kharchDescription}
             onChangeText={setKharchDescription}
-            placeholder="उदा. डिझेल / कामगार पगार / ऑइल"
+            placeholder={
+              kharchType === 'machine'
+                ? 'उदा. डिझेल / ऑइल / दुरुस्ती'
+                : 'उदा. जेवण / प्रवास / घरखर्च'
+            }
+            placeholderTextColor="#9CA3AF"
           />
+        </View>
 
-          <AppInput
-            label="रक्कम (₹)"
+        {/* ── रक्कम ── */}
+        <View style={styles.inputRow}>
+          <View style={styles.labelContainer}>
+            <IndianRupee size={18} color="#78350F" />
+            <Text style={styles.labelText}>रक्कम (₹) <Text style={styles.requiredStar}>*</Text></Text>
+          </View>
+          <TextInput
+            style={styles.textInputBox}
             value={kharchAmount}
             onChangeText={setKharchAmount}
             placeholder="उदा. 2000"
+            placeholderTextColor="#9CA3AF"
             keyboardType="numeric"
           />
+        </View>
 
-          <AppDropdown
-            label="पेमेंट प्रकार"
-            value={kharchPaymentType}
-            onChangeText={setKharchPaymentType}
-            options={[
-              { label: 'रोख (Cash)', value: 'रोख' },
-              { label: 'ऑनलाइन (GPay/PhonePe)', value: 'ऑनलाइन' },
-              { label: 'उधारी (Credit)', value: 'उधारी' },
-            ]}
-          />
+        {/* ── पेमेंट प्रकार ── */}
+        <View style={styles.inputRow}>
+          <View style={styles.labelContainer}>
+            <CreditCard size={18} color="#78350F" />
+            <Text style={styles.labelText}>पेमेंट <Text style={styles.requiredStar}>*</Text></Text>
+          </View>
+          <View style={styles.radioGroup}>
+            {(['cash', 'online', 'credit'] as const).map((pt) => (
+              <TouchableOpacity
+                key={pt}
+                style={styles.radioItem}
+                onPress={() => setKharchPaymentType(pt)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.outerRadio, kharchPaymentType === pt && styles.outerRadioActive]}>
+                  {kharchPaymentType === pt && <View style={styles.innerRadioDot} />}
+                </View>
+                <Text style={styles.radioText}>
+                  {pt === 'cash' ? 'रोख' : pt === 'online' ? 'ऑनलाइन' : 'उधारी'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
-          <AppInput
-            label="नोंद / तपशील"
+        {/* ── नोंद ── */}
+        <View style={styles.notesRow}>
+          <View style={styles.labelContainerNotes}>
+            <StickyNote size={18} color="#78350F" />
+            <Text style={styles.labelText}>नोंद</Text>
+          </View>
+          <TextInput
+            style={styles.notesArea}
             value={kharchNotes}
             onChangeText={setKharchNotes}
-            placeholder="काही अतिरिक्त माहिती असल्यास"
+            placeholder="काही नोंद असल्यास लिहा..."
+            placeholderTextColor="#9CA3AF"
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
           />
+        </View>
 
-          <View style={tw`pt-2`}>
-            <AppButton
-              title={kharchSaving ? 'सेव्ह होत आहे...' : 'खर्च सेव्ह करा'}
-              onPress={handleSaveKharch}
-              variant="danger"
-            />
-          </View>
-        </AppCard>
-
-        {/* SUMMARY */}
-        <View>
-          <View style={tw`flex flex-row items-center justify-between px-1 mb-2`}>
-            <Text style={tw`text-xs font-bold text-[${colors.textTertiary}] uppercase tracking-wider`}>
-              आजचा खर्च सारांश
-            </Text>
-            <Text style={tw`text-[11px] font-semibold text-[${colors.textTertiary}]`}>{date}</Text>
-          </View>
-
+        {/* ── Save Button ── */}
+        <View style={styles.bottomBtnWrapper}>
           <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => { setShowDetails(true); loadDetailEntries(); }}
-            style={styles.summaryCard}
+            style={[
+              styles.bottomSaveBtn,
+              kharchType === 'personal' && styles.bottomSaveBtnPersonal,
+            ]}
+            onPress={handleSaveKharch}
+            disabled={kharchSaving}
+            activeOpacity={0.8}
           >
-            <View style={tw`flex flex-row items-center gap-2 mb-2`}>
-              <View style={styles.summaryIcon}>
-                <TrendingDown size={16} color="#DC2626" />
-              </View>
-              <Text style={tw`text-sm font-bold text-[#DC2626]`}>एकूण खर्च</Text>
-            </View>
-            <Text style={tw`text-xl font-black text-[#DC2626]`}>
-              {formatCurrency(summary.expense)}
-            </Text>
-            <Text style={tw`text-[10px] font-semibold text-[#DC2626] mt-1 opacity-70`}>
-              तपशील पहा ›
+            <Text style={styles.bottomSaveBtnText}>
+              {kharchSaving
+                ? 'जतन होत आहे...'
+                : kharchType === 'machine'
+                ? '🔧 मशीन खर्च जतन करा'
+                : '🏠 वैयक्तिक खर्च जतन करा'}
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* ── आजचा खर्च सारांश ── */}
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryHeaderRow}>
+            <View style={tw`flex flex-row items-center gap-2`}>
+              <TrendingDown size={15} color="#DC2626" />
+              <Text style={styles.summaryTitle}>आजचा खर्च सारांश</Text>
+            </View>
+            <Text style={styles.summaryDate}>{date}</Text>
+          </View>
+
+          {/* 3-pill summary: Total / Machine / Personal - Interactive Filter */}
+          <View style={tw`flex flex-row gap-2 mb-3`}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setFilterType('all')}
+              style={[
+                styles.statPill,
+                { backgroundColor: '#FEF2F2', borderColor: filterType === 'all' ? '#DC2626' : '#FECDD3', borderWidth: filterType === 'all' ? 2 : 1 },
+              ]}
+            >
+              <Text style={[styles.statPillLabel, { color: '#DC2626', fontWeight: filterType === 'all' ? '900' : '700' }]}>
+                {filterType === 'all' ? '● एकूण खर्च' : 'एकूण खर्च'}
+              </Text>
+              <Text style={[styles.statPillValue, { color: '#DC2626' }]}>{formatCurrency(summary.expense)}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setFilterType('machine')}
+              style={[
+                styles.statPill,
+                { backgroundColor: '#FFF7ED', borderColor: filterType === 'machine' ? '#EA580C' : '#FED7AA', borderWidth: filterType === 'machine' ? 2 : 1 },
+              ]}
+            >
+              <Text style={[styles.statPillLabel, { color: '#C2410C', fontWeight: filterType === 'machine' ? '900' : '700' }]}>
+                {filterType === 'machine' ? '● मशीन' : 'मशीन'}
+              </Text>
+              <Text style={[styles.statPillValue, { color: '#C2410C' }]}>{formatCurrency(summary.machineExpense)}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setFilterType('personal')}
+              style={[
+                styles.statPill,
+                { backgroundColor: '#EFF6FF', borderColor: filterType === 'personal' ? '#2563EB' : '#BFDBFE', borderWidth: filterType === 'personal' ? 2 : 1 },
+              ]}
+            >
+              <Text style={[styles.statPillLabel, { color: '#1D4ED8', fontWeight: filterType === 'personal' ? '900' : '700' }]}>
+                {filterType === 'personal' ? '● वैयक्तिक' : 'वैयक्तिक'}
+              </Text>
+              <Text style={[styles.statPillValue, { color: '#1D4ED8' }]}>{formatCurrency(summary.personalExpense)}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Filtered Inline Entries Table */}
+          {(() => {
+            const filtered = expenseList.filter((it) => {
+              const isMachine = it.category === 'मशीन खर्च';
+              if (filterType === 'machine') return isMachine;
+              if (filterType === 'personal') return !isMachine;
+              return true;
+            });
+            const filteredSum = filtered.reduce((acc, it) => acc + it.amount, 0);
+            const activeLabel = filterType === 'machine' ? 'मशीन खर्च' : filterType === 'personal' ? 'वैयक्तिक खर्च' : 'एकूण खर्च';
+
+            if (summaryLoading) return (
+              <View style={tw`py-6 items-center justify-center`}>
+                <ActivityIndicator size="small" color="#DC2626" />
+                <Text style={tw`text-xs text-gray-400 mt-1.5 font-medium`}>नोंदी लोड होत आहेत...</Text>
+              </View>
+            );
+
+            if (filtered.length === 0) return (
+              <View style={tw`py-7 items-center justify-center bg-white rounded-xl border border-gray-100`}>
+                <TrendingDown size={26} color="#D1D5DB" />
+                <Text style={tw`text-xs font-semibold text-gray-400 mt-2`}>
+                  {date} साठी {activeLabel} नोंद नाही
+                </Text>
+              </View>
+            );
+
+            return (
+              <View style={styles.tableCard}>
+                {/* Header */}
+                <View style={styles.tableHeader}>
+                  <Text style={[styles.tableHeaderCell, { flex: 0.3, textAlign: 'center' }]}>#</Text>
+                  <Text style={[styles.tableHeaderCell, { flex: 1.8 }]}>वर्णन</Text>
+                  <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: 'center' }]}>प्रकार</Text>
+                  <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                    <Text style={[styles.tableHeaderCell, { paddingRight: 12 }]}>रक्कम</Text>
+                  </View>
+                  <Text style={[styles.tableHeaderCell, { flex: 0.7, textAlign: 'center' }]}>क्रिया</Text>
+                </View>
+
+                {/* Rows */}
+                {filtered.map((item, idx) => (
+                  <View
+                    key={`exp-${item.id ?? idx}`}
+                    style={[
+                      styles.tableRow,
+                      idx % 2 === 0 ? { backgroundColor: '#FFF5F5' } : { backgroundColor: 'white' },
+                    ]}
+                  >
+                    <Text style={[styles.tableCellSr, { flex: 0.3 }]}>{idx + 1}</Text>
+
+                    <View style={{ flex: 1.8 }}>
+                      <Text style={styles.tableCellMain} numberOfLines={1}>{item.description}</Text>
+                      {item.notes ? (
+                        <Text style={styles.tableCellSub} numberOfLines={1}>
+                          {String(item.notes).replace(/\[machine:[^\]]+\]/gi, '').trim()}
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    <View style={{ flex: 0.8, alignItems: 'center' }}>
+                      <View style={[
+                        styles.payChip,
+                        item.paymentType === 'online'
+                          ? { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }
+                          : item.paymentType === 'credit'
+                            ? { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }
+                            : { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' },
+                      ]}>
+                        <Text style={[
+                          styles.payChipText,
+                          item.paymentType === 'online'
+                            ? { color: '#1D4ED8' }
+                            : item.paymentType === 'credit'
+                              ? { color: '#DC2626' }
+                              : { color: '#15803D' },
+                        ]}>
+                          {item.paymentType === 'online' ? 'Online' : item.paymentType === 'credit' ? 'उधार' : 'रोख'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={{ flex: 1, alignItems: 'flex-end', paddingRight: 15 }}>
+                      <Text style={styles.tableCellExpAmount}>-{formatCurrency(item.amount)}</Text>
+                    </View>
+
+                    <View style={{ flex: 0.7, flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
+                      <TouchableOpacity
+                        onPress={() => handleOpenEditItem(item)}
+                        style={styles.actionBtn}
+                        activeOpacity={0.7}
+                      >
+                        <FileText size={12} color="#2563EB" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteItem(item)}
+                        style={[styles.actionBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECDD3' }]}
+                        activeOpacity={0.7}
+                      >
+                        <Trash2 size={12} color="#DC2626" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+
+                {/* Footer */}
+                <View style={styles.tableFooterExp}>
+                  <Text style={[styles.tableFooterLabel, { flex: 2.8 }]}>
+                    {activeLabel} ({filtered.length} नोंदी)
+                  </Text>
+                  <View style={{ flex: 1, alignItems: 'flex-end', paddingRight: 15 }}>
+                    <Text style={styles.tableFooterExpAmount}>-{formatCurrency(filteredSum)}</Text>
+                  </View>
+                  <View style={{ flex: 0.7 }} />
+                </View>
+              </View>
+            );
+          })()}
+        </View>
       </ScrollView>
 
-      {/* DETAIL MODAL */}
+      {/* ══════════════════════════════════════
+          MACHINE PICKER MODAL
+      ══════════════════════════════════════ */}
+      <Modal
+        visible={showMachinePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowMachinePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.pickerModalContainer}>
+            <View style={styles.modalHeader}>
+              <View style={tw`flex flex-row items-center gap-2.5`}>
+                <View style={[styles.modalIconBadge, { backgroundColor: '#FEF3C7' }]}>
+                  <Truck size={20} color="#D97706" />
+                </View>
+                <View>
+                  <Text style={styles.modalTitle}>मशीन निवडा</Text>
+                  <Text style={styles.modalSubtitle}>मशीन खर्चासाठी मशीन निवडा</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowMachinePicker(false)}
+                style={styles.modalCloseBtn}
+                activeOpacity={0.7}
+              >
+                <X size={18} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={true}>
+              {machinesLoading ? (
+                <View style={tw`py-14 items-center justify-center`}>
+                  <ActivityIndicator size="large" color="#D97706" />
+                  <Text style={tw`text-xs text-gray-500 mt-2 font-medium`}>मशीन लोड होत आहे...</Text>
+                </View>
+              ) : machines.length === 0 ? (
+                <View style={tw`py-14 items-center justify-center`}>
+                  <Text style={tw`text-sm font-semibold text-gray-400`}>कोणतीही मशीन उपलब्ध नाही.</Text>
+                  <Text style={tw`text-xs text-gray-400 mt-1`}>मशीन विभागात प्रथम मशीन जोडा.</Text>
+                </View>
+              ) : (
+                machines.map((m) => (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={[
+                      styles.machinePickerItem,
+                      selectedMachine?.id === m.id && styles.machinePickerItemActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedMachine(m);
+                      setShowMachinePicker(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.machinePickerItemIcon}>
+                      <Truck size={16} color={selectedMachine?.id === m.id ? '#D97706' : '#9CA3AF'} />
+                    </View>
+                    <View style={tw`flex-1`}>
+                      <Text style={[
+                        styles.machinePickerItemName,
+                        selectedMachine?.id === m.id && styles.machinePickerItemNameActive,
+                      ]}>
+                        {m.name}
+                      </Text>
+                      {m.model_number ? (
+                        <Text style={styles.machinePickerItemModel}>{m.model_number}</Text>
+                      ) : null}
+                    </View>
+                    {selectedMachine?.id === m.id && (
+                      <CheckCircle size={18} color="#D97706" />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              onPress={() => setShowMachinePicker(false)}
+              style={[styles.modalCloseButton, { backgroundColor: '#92400E' }]}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalCloseButtonText}>बंद करा</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ══════════════════════════════════════
+          DETAIL ENTRIES MODAL
+      ══════════════════════════════════════ */}
       <Modal
         visible={showDetails}
         transparent={true}
@@ -279,15 +822,19 @@ export const KharchEntryScreen: React.FC<KharchEntryScreenProps> = ({ onBack }) 
                   <Text style={styles.modalSubtitle}>तारीख: {date}</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={() => setShowDetails(false)} style={styles.modalCloseBtn} activeOpacity={0.7}>
-                <X size={18} color={colors.textSecondary} />
+              <TouchableOpacity
+                onPress={() => setShowDetails(false)}
+                style={styles.modalCloseBtn}
+                activeOpacity={0.7}
+              >
+                <X size={18} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
             {modalLoading ? (
               <View style={tw`py-14 items-center justify-center`}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={tw`text-xs text-[${colors.textTertiary}] mt-2 font-medium`}>तपशील लोड होत आहे...</Text>
+                <ActivityIndicator size="large" color="#6B121C" />
+                <Text style={tw`text-xs text-gray-500 mt-2 font-medium`}>तपशील लोड होत आहे...</Text>
               </View>
             ) : (
               <>
@@ -298,7 +845,9 @@ export const KharchEntryScreen: React.FC<KharchEntryScreenProps> = ({ onBack }) 
                       <Text style={styles.heroBannerAmount}>{formatCurrency(summary.expense)}</Text>
                     </View>
                     <View style={tw`items-end`}>
-                      <Text style={tw`text-[11px] text-red-700 font-bold`}>एकूण नोंदी: {expenseList.length}</Text>
+                      <Text style={tw`text-[11px] text-red-700 font-bold`}>
+                        एकूण नोंदी: {expenseList.length}
+                      </Text>
                     </View>
                   </View>
                 </View>
@@ -310,35 +859,76 @@ export const KharchEntryScreen: React.FC<KharchEntryScreenProps> = ({ onBack }) 
                 <ScrollView style={styles.modalScrollBody} showsVerticalScrollIndicator={true}>
                   {expenseList.length === 0 ? (
                     <View style={tw`py-10 items-center justify-center`}>
-                      <Text style={tw`text-xs font-semibold text-[${colors.textMuted}]`}>आजसाठी कोणतीही खर्च नोंद उपलब्ध नाही.</Text>
+                      <Text style={tw`text-xs font-semibold text-gray-400`}>
+                        आजसाठी कोणतीही खर्च नोंद उपलब्ध नाही.
+                      </Text>
                     </View>
                   ) : (
-                    expenseList.map((item, idx) => (
-                      <View key={item.id || idx} style={styles.itemCard}>
-                        <View style={tw`flex flex-row justify-between items-start`}>
-                          <View style={tw`flex-1 pr-2`}>
-                            <View style={tw`flex flex-row items-center gap-1.5`}>
-                              <TrendingDown size={14} color="#DC2626" />
-                              <Text style={styles.itemTitle} numberOfLines={1}>{item.description}</Text>
-                            </View>
-                            {item.notes ? (
-                              <Text style={styles.itemSub} numberOfLines={1}>{item.notes}</Text>
-                            ) : null}
-                            <View style={tw`flex flex-row items-center gap-2 mt-2`}>
-                              <View style={styles.categoryBadge}>
-                                <Text style={styles.categoryBadgeText}>{item.category}</Text>
+                    expenseList.map((item, idx) => {
+                      const machineName = extractMachineName(item.notes);
+                      return (
+                        <View key={item.id || idx} style={styles.itemCard}>
+                          <View style={tw`flex flex-row justify-between items-start`}>
+                            <View style={tw`flex-1 pr-2`}>
+                              <View style={tw`flex flex-row items-center gap-1.5`}>
+                                <TrendingDown size={14} color="#DC2626" />
+                                <Text style={styles.itemTitle} numberOfLines={1}>{item.description}</Text>
                               </View>
-                              <View style={styles.payBadge}>
-                                <Text style={styles.payBadgeText}>
-                                  {item.paymentType === 'online' ? 'Online' : item.paymentType === 'credit' ? 'उधारी' : 'रोख'}
-                                </Text>
+
+                              {/* Machine tag badge */}
+                              {machineName && (
+                                <View style={styles.machineBadgeRow}>
+                                  <Truck size={10} color="#92400E" />
+                                  <Text style={styles.machineBadgeText}>{machineName}</Text>
+                                </View>
+                              )}
+
+                              {item.notes && !machineName && (
+                                <Text style={styles.itemSub} numberOfLines={1}>{item.notes}</Text>
+                              )}
+
+                              <View style={tw`flex flex-row items-center gap-2 mt-2`}>
+                                <View style={[
+                                  styles.categoryBadge,
+                                  machineName && { backgroundColor: '#FEF3C7', borderColor: '#FCD34D' },
+                                ]}>
+                                  <Text style={[
+                                    styles.categoryBadgeText,
+                                    machineName && { color: '#92400E' },
+                                  ]}>
+                                    {item.category}
+                                  </Text>
+                                </View>
+                                <View style={styles.payBadge}>
+                                  <Text style={styles.payBadgeText}>
+                                    {item.paymentType === 'online' ? 'Online' : item.paymentType === 'credit' ? 'उधारी' : 'रोख'}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                            <View style={tw`items-end gap-2`}>
+                              <Text style={styles.amountRed}>-{formatCurrency(item.amount)}</Text>
+                              <View style={tw`flex flex-row items-center gap-1.5`}>
+                                <TouchableOpacity
+                                  onPress={() => handleOpenEditItem(item)}
+                                  style={tw`p-1.5 rounded-lg bg-blue-50 border border-blue-200`}
+                                  activeOpacity={0.7}
+                                >
+                                  <FileText size={13} color="#2563EB" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  onPress={() => handleDeleteItem(item)}
+                                  style={tw`p-1.5 rounded-lg bg-red-50 border border-red-200`}
+                                  activeOpacity={0.7}
+                                >
+                                  <Trash2 size={13} color="#DC2626" />
+                                </TouchableOpacity>
                               </View>
                             </View>
                           </View>
-                          <Text style={styles.amountRed}>-{formatCurrency(item.amount)}</Text>
                         </View>
-                      </View>
-                    ))
+                      );
+                    })
                   )}
                 </ScrollView>
 
@@ -349,9 +939,192 @@ export const KharchEntryScreen: React.FC<KharchEntryScreenProps> = ({ onBack }) 
               </>
             )}
 
-            <TouchableOpacity onPress={() => setShowDetails(false)} style={styles.modalCloseButton} activeOpacity={0.8}>
+            <TouchableOpacity
+              onPress={() => setShowDetails(false)}
+              style={styles.modalCloseButton}
+              activeOpacity={0.8}
+            >
               <Text style={styles.modalCloseButtonText}>बंद करा (Close)</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ══════════════════════════════════════
+          EDIT EXPENSE MODAL
+      ══════════════════════════════════════ */}
+      {/* ══════════════════════════════════════
+          EDIT EXPENSE MODAL
+      ══════════════════════════════════════ */}
+      <Modal
+        visible={editItemModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditItemModalOpen(false)}
+      >
+        <View style={styles.editModalBackdrop}>
+          <View style={styles.editModalCard}>
+            {/* Header */}
+            <View style={styles.editModalHeader}>
+              <View style={tw`flex flex-row items-center gap-2.5`}>
+                <View style={[styles.editModalIconBadge, { backgroundColor: '#FEE2E2' }]}>
+                  <FileText size={18} color="#DC2626" />
+                </View>
+                <View>
+                  <Text style={styles.editModalTitle}>खर्च नोंद संपादन</Text>
+                  <Text style={styles.editModalSubtitle}>
+                    {editingItem?.category || 'खर्च नोंद तपशील'}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setEditItemModalOpen(false)}
+                style={styles.editModalCloseBtn}
+                activeOpacity={0.7}
+              >
+                <X size={18} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.editModalBody} showsVerticalScrollIndicator={false}>
+              {/* Field 1: वर्णन */}
+              <View style={styles.editFieldGroup}>
+                <View style={styles.editFieldLabelRow}>
+                  <FileText size={14} color="#78350F" />
+                  <Text style={styles.editFieldLabel}>
+                    खर्चाचे नाव / वर्णन <Text style={styles.requiredStar}>*</Text>
+                  </Text>
+                </View>
+                <TextInput
+                  style={styles.editTextInput}
+                  value={editItemDesc}
+                  onChangeText={setEditItemDesc}
+                  placeholder="उदा. डिझेल / जेवण"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              {/* Field 2: रक्कम */}
+              <View style={styles.editFieldGroup}>
+                <View style={styles.editFieldLabelRow}>
+                  <IndianRupee size={14} color="#78350F" />
+                  <Text style={styles.editFieldLabel}>
+                    रक्कम (₹) <Text style={styles.requiredStar}>*</Text>
+                  </Text>
+                </View>
+                <TextInput
+                  style={[styles.editTextInput, styles.editAmountInput, { color: '#DC2626' }]}
+                  value={editItemAmount}
+                  onChangeText={setEditItemAmount}
+                  placeholder="उदा. 1500"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Field 3: पेमेंट प्रकार */}
+              <View style={styles.editFieldGroup}>
+                <View style={styles.editFieldLabelRow}>
+                  <CreditCard size={14} color="#78350F" />
+                  <Text style={styles.editFieldLabel}>पेमेंट प्रकार</Text>
+                </View>
+                <View style={styles.editPayTypeRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.editPayTypePill,
+                      editItemPayType === 'cash' && styles.editPayTypePillActiveCash,
+                    ]}
+                    onPress={() => setEditItemPayType('cash')}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.editPayTypeText,
+                        editItemPayType === 'cash' && styles.editPayTypeTextActiveCash,
+                      ]}
+                    >
+                      {editItemPayType === 'cash' ? '● रोख' : 'रोख'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.editPayTypePill,
+                      editItemPayType === 'online' && styles.editPayTypePillActiveOnline,
+                    ]}
+                    onPress={() => setEditItemPayType('online')}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.editPayTypeText,
+                        editItemPayType === 'online' && styles.editPayTypeTextActiveOnline,
+                      ]}
+                    >
+                      {editItemPayType === 'online' ? '● ऑनलाइन' : 'ऑनलाइन'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.editPayTypePill,
+                      editItemPayType === 'credit' && styles.editPayTypePillActiveCredit,
+                    ]}
+                    onPress={() => setEditItemPayType('credit')}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.editPayTypeText,
+                        editItemPayType === 'credit' && styles.editPayTypeTextActiveCredit,
+                      ]}
+                    >
+                      {editItemPayType === 'credit' ? '● उधारी' : 'उधारी'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Field 4: नोंद */}
+              <View style={styles.editFieldGroup}>
+                <View style={styles.editFieldLabelRow}>
+                  <StickyNote size={14} color="#78350F" />
+                  <Text style={styles.editFieldLabel}>नोंद / टिप</Text>
+                </View>
+                <TextInput
+                  style={[styles.editTextInput, styles.editNotesInput]}
+                  value={editItemNotes}
+                  onChangeText={setEditItemNotes}
+                  placeholder="उदा. पाटोदा पंप..."
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={2}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.editActionRow}>
+                <TouchableOpacity
+                  style={styles.editCancelBtn}
+                  onPress={() => setEditItemModalOpen(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.editCancelBtnText}>रद्द करा</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.editSaveBtn, { backgroundColor: '#DC2626', shadowColor: '#DC2626' }]}
+                  onPress={handleSaveEditItem}
+                  disabled={editItemSaving}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.editSaveBtnText}>
+                    {editItemSaving ? 'अपडेट होत आहे...' : 'बदल जतन करा'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -359,56 +1132,195 @@ export const KharchEntryScreen: React.FC<KharchEntryScreenProps> = ({ onBack }) 
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  formHeader: {
+  screen: { flex: 1, backgroundColor: '#F9FAFB' },
+  header: {
+    backgroundColor: '#6B121C',
+    paddingTop: 48,
+    paddingBottom: 14,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#DC2626',
-    borderRadius: 12,
-    padding: 12,
+    justifyContent: 'space-between',
   },
-  formHeaderIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  backBtn: { padding: 6 },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: 'white', flex: 1, marginLeft: 12 },
+  saveHeaderBtn: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    elevation: 2,
   },
+  saveHeaderBtnText: { color: '#1C1917', fontSize: 14, fontWeight: '800' },
+
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 40, gap: 14 },
+
   successBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     backgroundColor: '#FEE2E2',
     borderWidth: 1,
     borderColor: '#FECDD3',
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  summaryCard: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1.5,
-    borderColor: '#FECDD3',
+  successText: { color: '#DC2626', fontSize: 13, fontWeight: '700' },
+
+  // ── Type Tabs ──
+  typeSectionContainer: {
+    backgroundColor: 'white',
     borderRadius: 14,
     padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 10,
   },
-  summaryIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: '#FEE2E2',
+  typeSectionLabel: { fontSize: 12, fontWeight: '800', color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5 },
+  typeTabsRow: { flexDirection: 'row', gap: 10 },
+  typeTab: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
   },
-  modalOverlay: {
+  typeTabActiveMachine: { backgroundColor: '#D97706', borderColor: '#B45309' },
+  typeTabActivePersonal: { backgroundColor: '#7C3AED', borderColor: '#6D28D9' },
+  typeTabText: { fontSize: 13, fontWeight: '700', color: '#6B7280' },
+  typeTabTextActive: { color: 'white' },
+
+  // ── Machine Selector ──
+  machineSelectorCard: {
+    backgroundColor: '#FFFBEB',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#FCD34D',
+    gap: 10,
+  },
+  machineSelectorHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  machineSelectorTitle: { fontSize: 13, fontWeight: '800', color: '#92400E' },
+  machinePickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#FCD34D',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  machinePickerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  machinePickerDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#D97706' },
+  machinePickerName: { fontSize: 14, fontWeight: '800', color: '#1F2937' },
+  machinePickerModel: { fontSize: 11, fontWeight: '500', color: '#6B7280', marginTop: 1 },
+  machinePickerPlaceholder: { fontSize: 13, fontWeight: '500', color: '#9CA3AF' },
+
+  // ── Form inputs ──
+  inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  labelContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '42%' },
+  labelContainerNotes: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '24%', marginTop: 8 },
+  labelText: { fontSize: 13, fontWeight: '700', color: '#1C1917' },
+  requiredStar: { color: '#DC2626', fontWeight: '800' },
+  textInputBox: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14,
+    color: '#1F2937',
   },
+  dateInputWrapper: { flex: 1 },
+  radioGroup: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  radioItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  outerRadio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#9CA3AF', alignItems: 'center', justifyContent: 'center' },
+  outerRadioActive: { borderColor: '#DC2626' },
+  innerRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#DC2626' },
+  radioText: { fontSize: 12.5, fontWeight: '600', color: '#1F2937' },
+  notesRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: 4 },
+  notesArea: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#1F2937',
+    minHeight: 80,
+  },
+
+  // ── Save button ──
+  bottomBtnWrapper: { marginTop: 6 },
+  bottomSaveBtn: {
+    backgroundColor: '#D97706',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+  },
+  bottomSaveBtnPersonal: { backgroundColor: '#7C3AED' },
+  bottomSaveBtnText: { color: 'white', fontSize: 15, fontWeight: '800' },
+
+  // ── Summary ──
+  summaryContainer: { marginTop: 10 },
+  summaryHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingHorizontal: 2 },
+  summaryTitle: { fontSize: 13, fontWeight: '800', color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5 },
+  summaryDate: { fontSize: 11, fontWeight: '600', color: '#6B7280' },
+  summaryCard: { backgroundColor: '#FEF2F2', borderWidth: 1.5, borderColor: '#FECDD3', borderRadius: 14, padding: 14 },
+  summaryIconCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center' },
+  summaryCardLabel: { fontSize: 12, fontWeight: '700', color: '#DC2626' },
+  summaryCardAmount: { fontSize: 20, fontWeight: '900', color: '#DC2626', marginTop: 2 },
+  summaryViewDetails: { fontSize: 12, fontWeight: '700', color: '#DC2626' },
+
+  // ── Machine picker modal ──
+  pickerModalContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+    paddingTop: 16,
+    paddingBottom: 24,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  machinePickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  machinePickerItemActive: { backgroundColor: '#FFFBEB', borderColor: '#FCD34D' },
+  machinePickerItemIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
+  machinePickerItemName: { fontSize: 14, fontWeight: '800', color: '#1F2937' },
+  machinePickerItemNameActive: { color: '#92400E' },
+  machinePickerItemModel: { fontSize: 11, fontWeight: '500', color: '#6B7280', marginTop: 2 },
+
+  // ── Shared modal styles ──
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
   modalContainer: {
-    backgroundColor: colors.white,
+    backgroundColor: 'white',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '85%',
@@ -417,76 +1329,221 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 12,
   },
-  modalHeader: {
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  modalIconBadge: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center' },
+  modalTitle: { fontSize: 15, fontWeight: '800', color: '#1F2937' },
+  modalSubtitle: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
+  modalCloseBtn: { padding: 6, borderRadius: 20, backgroundColor: '#F3F4F6' },
+  modalScrollBody: { maxHeight: 320 },
+  heroBanner: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECDD3', borderRadius: 14, padding: 14 },
+  heroBannerLabel: { fontSize: 11, fontWeight: '700', color: '#991B1B', marginBottom: 2 },
+  heroBannerAmount: { fontSize: 22, fontWeight: '900', color: '#DC2626' },
+  itemCard: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 12, marginBottom: 8 },
+  itemTitle: { fontSize: 13, fontWeight: '800', color: '#1F2937' },
+  itemSub: { fontSize: 11, fontWeight: '500', color: '#4B5563', marginTop: 2 },
+  machineBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  machineBadgeText: { fontSize: 10, fontWeight: '700', color: '#92400E' },
+  categoryBadge: { backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: '#E5E7EB' },
+  categoryBadgeText: { fontSize: 9, fontWeight: '600', color: '#4B5563' },
+  payBadge: { backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  payBadgeText: { fontSize: 9, fontWeight: '700', color: '#6B7280' },
+  amountRed: { fontSize: 14, fontWeight: '900', color: '#DC2626' },
+  tallyFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', marginTop: 4 },
+  modalCloseButton: { backgroundColor: '#6B121C', borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 4 },
+  modalCloseButtonText: { fontSize: 14, fontWeight: '800', color: 'white' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  modalCard: { width: '100%', maxWidth: 400, maxHeight: '90%', backgroundColor: 'white', borderRadius: 16, padding: 20, elevation: 10 },
+
+  // ── Inline Table Styles ──
+  statPill: { flex: 1, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 8, borderWidth: 1, alignItems: 'center' },
+  statPillLabel: { fontSize: 9, fontWeight: '700', marginBottom: 2 },
+  statPillValue: { fontSize: 12, fontWeight: '900' },
+  tableCard: { backgroundColor: 'white', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' },
+  tableHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', paddingVertical: 7, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: '#FECDD3' },
+  tableHeaderCell: { fontSize: 9, fontWeight: '800', color: '#991B1B', textTransform: 'uppercase' as const, letterSpacing: 0.3 },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: '#FEE2E2' },
+  tableCellSr: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', textAlign: 'center' as const },
+  tableCellMain: { fontSize: 12, fontWeight: '700', color: '#1F2937' },
+  tableCellSub: { fontSize: 10, fontWeight: '500', color: '#6B7280', marginTop: 1 },
+  tableCellExpAmount: { fontSize: 12, fontWeight: '900', color: '#DC2626' },
+  payChip: { paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5, borderWidth: 1, alignItems: 'center' as const },
+  payChipText: { fontSize: 8, fontWeight: '800' as const },
+  actionBtn: { padding: 5, borderRadius: 6, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' },
+  tableFooterExp: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', paddingVertical: 8, paddingHorizontal: 8, borderTopWidth: 1.5, borderTopColor: '#FECDD3' },
+  tableFooterLabel: { fontSize: 10, fontWeight: '800', color: '#991B1B' },
+  tableFooterExpAmount: { fontSize: 13, fontWeight: '900', color: '#DC2626' },
+
+  // ── Edit Modal Styles ──
+  editModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  editModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '92%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  editModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 10,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+    borderBottomColor: '#F3F4F6',
   },
-  modalIconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#FEE2E2',
+  editModalIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalTitle: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
-  modalSubtitle: { fontSize: 12, fontWeight: '600', color: colors.textTertiary },
-  modalCloseBtn: { padding: 6, borderRadius: 20, backgroundColor: colors.surfaceSecondary },
-  modalScrollBody: { maxHeight: 320 },
-  heroBanner: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECDD3',
-    borderRadius: 14,
-    padding: 14,
+  editModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#111827',
   },
-  heroBannerLabel: { fontSize: 11, fontWeight: '700', color: '#991B1B', marginBottom: 2 },
-  heroBannerAmount: { fontSize: 22, fontWeight: '900', color: '#DC2626' },
-  itemCard: {
-    backgroundColor: colors.surfaceSecondary,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+  editModalSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 1,
   },
-  itemTitle: { fontSize: 13, fontWeight: '800', color: colors.textPrimary },
-  itemSub: { fontSize: 11, fontWeight: '500', color: colors.textSecondary, marginTop: 2 },
-  categoryBadge: {
-    backgroundColor: colors.surfaceTertiary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
+  editModalCloseBtn: {
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
   },
-  categoryBadgeText: { fontSize: 9, fontWeight: '600', color: colors.textSecondary },
-  payBadge: { backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  payBadgeText: { fontSize: 9, fontWeight: '700', color: colors.textTertiary },
-  amountRed: { fontSize: 14, fontWeight: '900', color: colors.expense },
-  tallyFooter: {
+  editModalBody: {
+    paddingVertical: 12,
+  },
+  editFieldGroup: {
+    marginBottom: 12,
+    gap: 5,
+  },
+  editFieldLabelRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 6,
+  },
+  editFieldLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  editTextInput: {
     backgroundColor: '#F9FAFB',
-    padding: 12,
-    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13.5,
+    color: '#111827',
+  },
+  editAmountInput: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  editNotesInput: {
+    minHeight: 54,
+    fontSize: 12.5,
+  },
+  editPayTypeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 2,
+  },
+  editPayTypePill: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    marginTop: 4,
-  },
-  modalCloseButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 4,
+    justifyContent: 'center',
   },
-  modalCloseButtonText: { fontSize: 14, fontWeight: '800', color: colors.white },
+  editPayTypePillActiveCash: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#86EFAC',
+  },
+  editPayTypePillActiveOnline: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#93C5FD',
+  },
+  editPayTypePillActiveCredit: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECDD3',
+  },
+  editPayTypeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4B5563',
+  },
+  editPayTypeTextActiveCash: {
+    color: '#15803D',
+    fontWeight: '800',
+  },
+  editPayTypeTextActiveOnline: {
+    color: '#1D4ED8',
+    fontWeight: '800',
+  },
+  editPayTypeTextActiveCredit: {
+    color: '#DC2626',
+    fontWeight: '800',
+  },
+  editActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+    paddingTop: 8,
+  },
+  editCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editCancelBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4B5563',
+  },
+  editSaveBtn: {
+    flex: 1.6,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  editSaveBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
 });
 
 export default KharchEntryScreen;

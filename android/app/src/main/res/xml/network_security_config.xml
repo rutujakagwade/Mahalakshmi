@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext (HTTP) traffic to Metro Bundler & API server -->
+    <!-- Allow cleartext (HTTP) traffic globally for dev/staging servers -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Specific domains & IPs permitted for cleartext HTTP -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">10.147.238.128</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
-        <domain includeSubdomains="false">35.154.122.181</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">192.168.1.7</domain>
+        <domain includeSubdomains="true">10.147.238.128</domain>
+        <domain includeSubdomains="true">35.154.122.181</domain>
     </domain-config>
 </network-security-config>
