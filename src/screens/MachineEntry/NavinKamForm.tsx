@@ -9,12 +9,10 @@ import {
   TextInput,
 } from 'react-native';
 import tw from 'twrnc';
-import { AppHeader } from '../../components/AppHeader';
 import { AppButton } from '../../components/AppButton';
 import { AppDatePicker } from '../../components/AppDatePicker';
 import { getTodayFormatted } from '../../utils/date';
 import { DailyLedgerService } from '../../utils/api';
-import { formatCurrency } from '../../utils/currency';
 import { colors } from '../../theme';
 import {
   FileText,
@@ -104,7 +102,7 @@ export const NavinKamForm: React.FC<NavinKamFormProps> = ({ onBack }) => {
 
   return (
     <View style={styles.screen}>
-      {/* Custom Header */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backArrow}>←</Text>
@@ -123,212 +121,215 @@ export const NavinKamForm: React.FC<NavinKamFormProps> = ({ onBack }) => {
           </View>
         ) : null}
 
-        {/* कामाचे नाव */}
-        <View style={styles.fieldRow}>
-          <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
-            <FileText size={18} color="#0284C7" />
-          </View>
-          <View style={styles.fieldContent}>
-            <Text style={styles.fieldLabel}>कामाचे नाव *</Text>
-            <TextInput
-              style={styles.textInput}
-              value={workName}
-              onChangeText={setWorkName}
-              placeholder="उदा. बेल्ट फिटींग काम"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-        </View>
+        {/* Single Form Card */}
+        <View style={styles.formCard}>
 
-        {/* ग्राहकाचे नाव */}
-        <View style={styles.fieldRow}>
-          <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
-            <User size={18} color="#D97706" />
-          </View>
-          <View style={styles.fieldContent}>
-            <Text style={styles.fieldLabel}>ग्राहकाचे नाव *</Text>
-            <TextInput
-              style={styles.textInput}
-              value={customerName}
-              onChangeText={setCustomerName}
-              placeholder="उदा. रमेश पाटील"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-        </View>
-
-        {/* मोबाईल क्र */}
-        <View style={styles.fieldRow}>
-          <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]}>
-            <Phone size={18} color="#16A34A" />
-          </View>
-          <View style={styles.fieldContent}>
-            <Text style={styles.fieldLabel}>मोबाईल क्र</Text>
-            <TextInput
-              style={styles.textInput}
-              value={mobileNumber}
-              onChangeText={(t) => setMobileNumber(t.replace(/[^0-9]/g, '').slice(0, 10))}
-              placeholder="9876543210"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="phone-pad"
-              maxLength={10}
-            />
-          </View>
-        </View>
-
-        {/* पत्ता */}
-        <View style={styles.fieldRow}>
-          <View style={[styles.iconCircle, { backgroundColor: '#FEE2E2' }]}>
-            <MapPin size={18} color="#DC2626" />
-          </View>
-          <View style={styles.fieldContent}>
-            <Text style={styles.fieldLabel}>पत्ता</Text>
-            <TextInput
-              style={styles.textInput}
-              value={address}
-              onChangeText={setAddress}
-              placeholder="उदा. पुणे, शिवाजी नगर"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-        </View>
-
-        {/* कामाचा प्रकार */}
-        <View style={styles.fieldRow}>
-          <View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}>
-            <Clock size={18} color="#7C3AED" />
-          </View>
-          <View style={styles.fieldContent}>
-            <Text style={styles.fieldLabel}>कामाचा प्रकार</Text>
-            <View style={styles.radioRow}>
-              <TouchableOpacity
-                style={styles.radioOption}
-                onPress={() => setWorkType('hourly')}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.radioCircle, workType === 'hourly' && styles.radioActive]}>
-                  {workType === 'hourly' && <View style={styles.radioDot} />}
-                </View>
-                <Text style={[styles.radioLabel, workType === 'hourly' && styles.radioLabelActive]}>
-                  प्रति घंटा
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.radioOption}
-                onPress={() => setWorkType('contract')}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.radioCircle, workType === 'contract' && styles.radioActive]}>
-                  {workType === 'contract' && <View style={styles.radioDot} />}
-                </View>
-                <Text style={[styles.radioLabel, workType === 'contract' && styles.radioLabelActive]}>
-                  ठेका
-                </Text>
-              </TouchableOpacity>
+          {/* कामाचे नाव */}
+          <View style={styles.fieldRow}>
+            <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
+              <FileText size={18} color="#0284C7" />
+            </View>
+            <View style={styles.fieldContent}>
+              <Text style={styles.fieldLabel}>कामाचे नाव *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={workName}
+                onChangeText={setWorkName}
+                placeholder="उदा. बेल्ट फिटींग काम"
+                placeholderTextColor="#9CA3AF"
+              />
             </View>
           </View>
-        </View>
 
-        {/* प्रति घंटा दर + एकूण तास - Side by Side */}
-        <View style={styles.sideBySideRow}>
-          <View style={styles.halfField}>
-            <View style={styles.fieldRowCompact}>
-              <View style={[styles.iconCircleSmall, { backgroundColor: '#FEF3C7' }]}>
-                <IndianRupee size={14} color="#D97706" />
+          {/* ग्राहकाचे नाव */}
+          <View style={styles.fieldRow}>
+            <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
+              <User size={18} color="#D97706" />
+            </View>
+            <View style={styles.fieldContent}>
+              <Text style={styles.fieldLabel}>ग्राहकाचे नाव *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={customerName}
+                onChangeText={setCustomerName}
+                placeholder="उदा. रमेश पाटील"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+          </View>
+
+          {/* मोबाईल क्र */}
+          <View style={styles.fieldRow}>
+            <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]}>
+              <Phone size={18} color="#16A34A" />
+            </View>
+            <View style={styles.fieldContent}>
+              <Text style={styles.fieldLabel}>मोबाईल क्र</Text>
+              <TextInput
+                style={styles.textInput}
+                value={mobileNumber}
+                onChangeText={(t) => setMobileNumber(t.replace(/[^0-9]/g, '').slice(0, 10))}
+                placeholder="9876543210"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
+            </View>
+          </View>
+
+          {/* पत्ता */}
+          <View style={styles.fieldRow}>
+            <View style={[styles.iconCircle, { backgroundColor: '#FEE2E2' }]}>
+              <MapPin size={18} color="#DC2626" />
+            </View>
+            <View style={styles.fieldContent}>
+              <Text style={styles.fieldLabel}>पत्ता</Text>
+              <TextInput
+                style={styles.textInput}
+                value={address}
+                onChangeText={setAddress}
+                placeholder="उदा. पुणे, शिवाजी नगर"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+          </View>
+
+          {/* कामाचा प्रकार */}
+          <View style={styles.fieldRow}>
+            <View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}>
+              <Clock size={18} color="#7C3AED" />
+            </View>
+            <View style={styles.fieldContent}>
+              <Text style={styles.fieldLabel}>कामाचा प्रकार</Text>
+              <View style={styles.radioRow}>
+                <TouchableOpacity
+                  style={styles.radioOption}
+                  onPress={() => setWorkType('hourly')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.radioCircle, workType === 'hourly' && styles.radioActive]}>
+                    {workType === 'hourly' && <View style={styles.radioDot} />}
+                  </View>
+                  <Text style={[styles.radioLabel, workType === 'hourly' && styles.radioLabelActive]}>
+                    प्रति घंटा
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.radioOption}
+                  onPress={() => setWorkType('contract')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.radioCircle, workType === 'contract' && styles.radioActive]}>
+                    {workType === 'contract' && <View style={styles.radioDot} />}
+                  </View>
+                  <Text style={[styles.radioLabel, workType === 'contract' && styles.radioLabelActive]}>
+                    ठेका
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.fieldLabelSmall}>प्रति घंटा दर (₹)</Text>
             </View>
-            <TextInput
-              style={styles.textInput}
-              value={hourlyRate}
-              onChangeText={setHourlyRate}
-              placeholder="350"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="numeric"
-            />
           </View>
 
-          <View style={styles.halfField}>
-            <View style={styles.fieldRowCompact}>
-              <View style={[styles.iconCircleSmall, { backgroundColor: '#E0F2FE' }]}>
-                <Clock size={14} color="#0284C7" />
+          {/* प्रति घंटा दर + एकूण तास */}
+          <View style={styles.sideBySideRow}>
+            <View style={styles.halfField}>
+              <View style={styles.fieldRowCompact}>
+                <View style={[styles.iconCircleSmall, { backgroundColor: '#FEF3C7' }]}>
+                  <IndianRupee size={14} color="#D97706" />
+                </View>
+                <Text style={styles.fieldLabelSmall}>प्रति घंटा दर (₹)</Text>
               </View>
-              <Text style={styles.fieldLabelSmall}>एकूण तास (अंदाजे)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={hourlyRate}
+                onChangeText={setHourlyRate}
+                placeholder="350"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+              />
             </View>
-            <TextInput
-              style={styles.textInput}
-              value={totalHours}
-              onChangeText={setTotalHours}
-              placeholder="120"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="numeric"
-            />
-          </View>
-        </View>
-
-        {/* एकूण रक्कम - Highlighted */}
-        <View style={styles.totalAmountContainer}>
-          <View style={styles.totalAmountRow}>
-            <View style={[styles.iconCircle, { backgroundColor: '#FEF9C3' }]}>
-              <IndianRupee size={18} color="#A16207" />
+            <View style={styles.halfField}>
+              <View style={styles.fieldRowCompact}>
+                <View style={[styles.iconCircleSmall, { backgroundColor: '#E0F2FE' }]}>
+                  <Clock size={14} color="#0284C7" />
+                </View>
+                <Text style={styles.fieldLabelSmall}>एकूण तास (अंदाजे)</Text>
+              </View>
+              <TextInput
+                style={styles.textInput}
+                value={totalHours}
+                onChangeText={setTotalHours}
+                placeholder="120"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+              />
             </View>
-            <Text style={styles.totalLabel}>एकूण रक्कम</Text>
           </View>
-          <View style={styles.totalAmountDisplay}>
-            <Text style={styles.totalAmountText}>
-              ₹ {totalAmount > 0 ? totalAmount.toLocaleString('en-IN') : '0'}
-            </Text>
-          </View>
-        </View>
 
-        {/* अग्रिम रक्कम */}
-        <View style={styles.fieldRow}>
-          <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]}>
-            <IndianRupee size={18} color="#16A34A" />
+          {/* एकूण रक्कम - Highlighted */}
+          <View style={styles.totalAmountContainer}>
+            <View style={styles.totalAmountRow}>
+              <View style={[styles.iconCircle, { backgroundColor: '#FEF9C3' }]}>
+                <IndianRupee size={18} color="#A16207" />
+              </View>
+              <Text style={styles.totalLabel}>एकूण रक्कम</Text>
+            </View>
+            <View style={styles.totalAmountDisplay}>
+              <Text style={styles.totalAmountText}>
+                ₹ {totalAmount > 0 ? totalAmount.toLocaleString('en-IN') : '0'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.fieldContent}>
-            <Text style={styles.fieldLabel}>अग्रिम रक्कम (₹)</Text>
-            <TextInput
-              style={styles.textInput}
-              value={advanceAmount}
-              onChangeText={setAdvanceAmount}
-              placeholder="5000"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="numeric"
-            />
-          </View>
-        </View>
 
-        {/* सुरुवातीची तारीख */}
-        <View style={styles.fieldRow}>
-          <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
-            <Calendar size={18} color="#0284C7" />
+          {/* अग्रिम रक्कम */}
+          <View style={styles.fieldRow}>
+            <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]}>
+              <IndianRupee size={18} color="#16A34A" />
+            </View>
+            <View style={styles.fieldContent}>
+              <Text style={styles.fieldLabel}>अग्रिम रक्कम (₹)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={advanceAmount}
+                onChangeText={setAdvanceAmount}
+                placeholder="5000"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+              />
+            </View>
           </View>
-          <View style={styles.fieldContent}>
-            <Text style={styles.fieldLabel}>सुरुवातीची तारीख</Text>
-            <AppDatePicker label="" value={startDate} onChange={setStartDate} />
-          </View>
-        </View>
 
-        {/* नोंद */}
-        <View style={styles.fieldRow}>
-          <View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}>
-            <StickyNote size={18} color="#7C3AED" />
+          {/* सुरुवातीची तारीख */}
+          <View style={styles.fieldRow}>
+            <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
+              <Calendar size={18} color="#0284C7" />
+            </View>
+            <View style={styles.fieldContent}>
+              <Text style={styles.fieldLabel}>सुरुवातीची तारीख</Text>
+              <AppDatePicker label="" value={startDate} onChange={setStartDate} />
+            </View>
           </View>
-          <View style={styles.fieldContent}>
-            <Text style={styles.fieldLabel}>नोंद</Text>
-            <TextInput
-              style={[styles.textInput, styles.textArea]}
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="काही अतिरिक्त माहिती लिहा..."
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
+
+          {/* नोंद */}
+          <View style={styles.fieldRow}>
+            <View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}>
+              <StickyNote size={18} color="#7C3AED" />
+            </View>
+            <View style={styles.fieldContent}>
+              <Text style={styles.fieldLabel}>नोंद</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="काही अतिरिक्त माहिती लिहा..."
+                placeholderTextColor="#9CA3AF"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </View>
           </View>
+
         </View>
 
         {/* Save Button */}
@@ -349,6 +350,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+
+  // Header
   header: {
     backgroundColor: '#7F1D1D',
     paddingTop: 48,
@@ -384,6 +387,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+
+  // ScrollView
   scrollView: {
     flex: 1,
   },
@@ -392,6 +397,8 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     gap: 12,
   },
+
+  // Success Banner
   successBanner: {
     backgroundColor: '#DCFCE7',
     borderWidth: 1,
@@ -407,15 +414,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+
+  // Single Form Card
+  formCard: {
+    backgroundColor: '#F5F5F4',
+    borderRadius: 16,
+    padding: 14,
+    gap: 14,
+  },
+
+  // Field Row (icon + label + input in one row)
   fieldRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    backgroundColor: 'white',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   iconCircle: {
     width: 40,
@@ -423,7 +435,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 18,
+    marginTop: 2,
   },
   fieldContent: {
     flex: 1,
@@ -435,7 +447,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   textInput: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'white',
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 10,
@@ -452,7 +464,7 @@ const styles = StyleSheet.create({
   // Radio
   radioRow: {
     flexDirection: 'row',
-    gap: 20,
+    gap: 24,
     marginTop: 4,
   },
   radioOption: {
@@ -461,9 +473,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   radioCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
     borderColor: '#D1D5DB',
     alignItems: 'center',
@@ -473,13 +485,13 @@ const styles = StyleSheet.create({
     borderColor: '#7C3AED',
   },
   radioDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#7C3AED',
   },
   radioLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: '#6B7280',
   },
@@ -491,15 +503,10 @@ const styles = StyleSheet.create({
   // Side by Side
   sideBySideRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
   },
   halfField: {
     flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   fieldRowCompact: {
     flexDirection: 'row',
@@ -508,14 +515,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   iconCircleSmall: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   fieldLabelSmall: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#374151',
   },
@@ -525,8 +532,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF9C3',
     borderWidth: 1.5,
     borderColor: '#FDE047',
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 12,
+    padding: 12,
   },
   totalAmountRow: {
     flexDirection: 'row',
@@ -554,8 +561,9 @@ const styles = StyleSheet.create({
     color: '#15803D',
   },
 
+  // Button
   btnWrapper: {
-    paddingTop: 8,
+    paddingTop: 4,
   },
 });
 
